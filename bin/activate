@@ -5,9 +5,8 @@
 
 
 script_path="$(realpath "$0")"
-parent_dir="$(dirname "$(dirname "$script_path")")"
+parent_dir="$(dirname "$(dirname "$script_path")")/config/"
 CONFIG_PATH="${parent_dir}/sniper-config.json"
-
 
 script_dir="$(dirname "$script_path")"
 

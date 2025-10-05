@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     }
     
     char config_filepath[2048];
-    snprintf(config_filepath, sizeof(config_filepath), "%s/sniper-config.json", base_path);
+    snprintf(config_filepath, sizeof(config_filepath), "%s/config/sniper-config.json", base_path);
 
     if (argc < 2 || strcmp(argv[1], "help") == 0) {
         print_help();

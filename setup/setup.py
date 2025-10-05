@@ -1,16 +1,17 @@
 # File: setup.py | Language: Python
-# Description: Universal dependency installer for the SNIPER project. (Corrected Version 2)
+# Description: Universal dependency installer for the SNIPER project. (pip update disabled)
 
 import os
 import sys
 import json
 import subprocess
 import shutil
+import importlib.util
 from typing import List, Dict, Any
 
 # --- Configuration & Globals ---
-
-PACKAGES_FILE = "packages.json"
+dir_name = os.path.dirname(os.path.abspath(__file__)) 
+PACKAGES_FILE = f"{dir_name}/packages.json"
 
 # --- Mapping for pip packages with different import names ---
 PIP_TO_IMPORT_MAP = {
@@ -39,32 +40,25 @@ TOTAL_OPS = 0
 # --- Helper Functions ---
 
 def print_info(message: str):
-    """Prints an informational message."""
     print(f"{Colors.BLUE}[INFO]{Colors.RESET} {message}")
 
 def print_error(message: str):
-    """Prints an error message to stderr."""
     print(f"{Colors.RED}[ERROR]{Colors.RESET} {message}", file=sys.stderr)
 
 def print_warn(message: str):
-    """Prints a warning message."""
     print(f"{Colors.YELLOW}[WARN]{Colors.RESET} {message}")
 
 def print_header():
-    """Prints the main header in SNIPER style."""
     print(f"{Colors.MAGENTA}╭───────────────────────────────────────────╮{Colors.RESET}")
     print(f"{Colors.MAGENTA}│   SNIPER: Universal Dependency Installer   │{Colors.RESET}")
     print(f"{Colors.MAGENTA}╰───────────────────────────────────────────╯{Colors.RESET}")
 
 def print_section(title: str):
-    """Prints a section header."""
     print(f"\n{Colors.BLUE}--- {title} ---{Colors.RESET}")
 
 def report_status(action: str, target: str, success: bool, output: str = ""):
-    """Reports the status of an operation and updates counters."""
     global TOTAL_OPS, SUCCESS_COUNT, FAIL_COUNT
     TOTAL_OPS += 1
-    
     if success:
         SUCCESS_COUNT += 1
         print(f"\r  [{Colors.GREEN}✔{Colors.RESET}] {Colors.GREEN}Success:{Colors.RESET} {action} '{target}' completed.                                ")
@@ -78,7 +72,6 @@ def report_status(action: str, target: str, success: bool, output: str = ""):
             print(f"--- End Output ---{Colors.RESET}")
 
 def get_system_platform() -> str:
-    """Determines the operating system (termux, debian, etc.)."""
     if 'com.termux' in os.environ.get('PREFIX', ''):
         return 'termux'
     if sys.platform.startswith('linux'):
@@ -87,7 +80,6 @@ def get_system_platform() -> str:
     return 'unknown'
 
 def load_packages() -> Dict[str, Any]:
-    """Loads package definitions from packages.json."""
     try:
         with open(PACKAGES_FILE, 'r') as f:
             return json.load(f)
@@ -101,33 +93,34 @@ def load_packages() -> Dict[str, Any]:
 # --- Check Functions ---
 
 def check_system_package(pkg: str) -> bool:
-    """Checks if a system package (command) is available in PATH."""
     return shutil.which(pkg) is not None
 
 def check_pip_package(pkg: str) -> bool:
     """
     Checks if a Python package is installed and importable.
-    This is the corrected version that handles different import names.
+    Improved to handle different import names and edge cases.
     """
     try:
-        # Use the map first, otherwise fall back to the default conversion.
         import_name = PIP_TO_IMPORT_MAP.get(pkg, pkg.replace('-', '_'))
-        
-        # Run a subprocess to isolate the import check.
-        # Hide output unless there's an error for cleaner reporting.
+
+        # First: use importlib to check presence quickly
+        if importlib.util.find_spec(import_name) is not None:
+            return True
+
+        # Second: subprocess isolation fallback
         result = subprocess.run(
             [sys.executable, "-c", f"import {import_name}"],
             capture_output=True,
             text=True
         )
         return result.returncode == 0
+
     except Exception:
         return False
 
 # --- Install Functions ---
 
 def run_command(command: List[str]) -> (bool, str):
-    """Runs a command and returns its status and output."""
     try:
         process = subprocess.run(command, capture_output=True, text=True, check=False)
         if process.returncode == 0:
@@ -140,14 +133,12 @@ def run_command(command: List[str]) -> (bool, str):
         return False, str(e)
 
 def install_system_package(pkg: str, install_cmd: str):
-    """Installs a single system package."""
     command = install_cmd.split() + [pkg]
     print(f"  {Colors.CYAN}❯ Installing '{Colors.BOLD}{pkg}{Colors.RESET}{Colors.CYAN}'...{Colors.RESET}", end="", flush=True)
     success, output = run_command(command)
     report_status("Install system package", pkg, success, output)
 
 def install_pip_package(pkg: str):
-    """Installs a single Python package using pip."""
     command = [sys.executable, "-m", "pip", "install", "--upgrade", pkg]
     print(f"  {Colors.CYAN}❯ Installing '{Colors.BOLD}{pkg}{Colors.RESET}{Colors.CYAN}'...{Colors.RESET}", end="", flush=True)
     success, output = run_command(command)
@@ -156,12 +147,10 @@ def install_pip_package(pkg: str):
 # --- Main Logic ---
 
 def run_check(packages: Dict, platform: str):
-    """Runs the dependency check mode."""
     print_section("Checking System Packages")
     if platform in packages.get("system", {}):
         sys_pkgs = packages["system"][platform]["packages"]
         for pkg in sys_pkgs:
-            # For dev packages, we can't easily check, so we assume a check is a 'skip'
             if 'dev' in pkg or 'essential' in pkg:
                 print(f"  [{Colors.YELLOW}i{Colors.RESET}] {Colors.YELLOW}Info:{Colors.RESET} Skipping check for dev package '{pkg}'.")
                 continue
@@ -177,7 +166,7 @@ def run_check(packages: Dict, platform: str):
         report_status("Check pip library", pkg, is_installed)
 
 def run_install(packages: Dict, platform: str):
-    """Runs the installation process."""
+    """Runs the installation process, checking for existing packages first."""
     print_section("Installing System Packages")
     if platform in packages.get("system", {}):
         platform_config = packages["system"][platform]
@@ -191,23 +180,30 @@ def run_install(packages: Dict, platform: str):
             report_status("Update package list", platform, success, output)
             if not success:
                 print_warn("Failed to update package lists. Continuing installation anyway...")
-        
+
         for pkg in sys_pkgs:
-            install_system_package(pkg, install_cmd)
+            if check_system_package(pkg):
+                print(f"  [{Colors.GREEN}✔{Colors.RESET}] {Colors.YELLOW}Exists:{Colors.RESET} System package '{pkg}' already installed.")
+            else:
+                install_system_package(pkg, install_cmd)
     else:
         print_warn(f"No system packages defined for platform '{platform}'. Skipping.")
 
     print_section("Installing Python Libraries (pip)")
     pip_pkgs = packages.get("python", [])
-    print(f"  {Colors.CYAN}❯ Upgrading pip...{Colors.RESET}", end="", flush=True)
-    success, output = run_command([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-    report_status("Upgrade pip", "pip", success, output)
+    
+    # [تعديل] تم تعطيل التحديث التلقائي لـ pip
+    # print(f"  {Colors.CYAN}❯ Upgrading pip...{Colors.RESET}", end="", flush=True)
+    # success, output = run_command([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+    # report_status("Upgrade pip", "pip", success, output)
 
     for pkg in pip_pkgs:
-        install_pip_package(pkg)
-        
+        if check_pip_package(pkg):
+            print(f"  [{Colors.GREEN}✔{Colors.RESET}] {Colors.YELLOW}Exists:{Colors.RESET} Python library '{pkg}' already installed.")
+        else:
+            install_pip_package(pkg)
+
 def print_final_report():
-    """Prints a summary of all operations."""
     print(f"\n{Colors.MAGENTA}╭──────────────────╮{Colors.RESET}")
     print(f"{Colors.MAGENTA}│   Final Report   │{Colors.RESET}")
     print(f"{Colors.MAGENTA}╰──────────────────╯{Colors.RESET}")
@@ -224,30 +220,33 @@ def print_final_report():
 def main():
     """Main entry point for the script."""
     print_header()
-    
-    mode = "install"
-    if len(sys.argv) > 1 and sys.argv[1].lower() == "check":
-        mode = "check"
 
-    platform = get_system_platform()
-    print_info(f"Detected System: {Colors.BOLD}{platform}{Colors.RESET}")
-    print_info(f"Operation Mode: {Colors.BOLD}{mode}{Colors.RESET}")
+    try:
+        mode = "install"
+        if len(sys.argv) > 1 and sys.argv[1].lower() == "check":
+            mode = "check"
 
-    if platform == 'unknown':
-        print_error("Could not determine your operating system. Aborting.")
-        sys.exit(1)
+        platform = get_system_platform()
+        print_info(f"Detected System: {Colors.BOLD}{platform}{Colors.RESET}")
+        print_info(f"Operation Mode: {Colors.BOLD}{mode}{Colors.RESET}")
 
-    packages = load_packages()
+        if platform == 'unknown':
+            print_error("Could not determine your operating system. Aborting.")
+            sys.exit(1)
 
-    if mode == "install":
-        run_install(packages, platform)
-    else: # mode == "check"
-        run_check(packages, platform)
+        packages = load_packages()
 
-    print_final_report()
-    
-    if FAIL_COUNT > 0:
-        sys.exit(1)
+        if mode == "install":
+            run_install(packages, platform)
+        else:
+            run_check(packages, platform)
+
+    except KeyboardInterrupt:
+        print(f"\n{Colors.YELLOW}[WARN]{Colors.RESET} Operation interrupted by user (Ctrl+C).")
+    finally:
+        print_final_report()
+        if FAIL_COUNT > 0:
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

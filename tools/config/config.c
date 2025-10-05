@@ -42,7 +42,7 @@ void print_panel_top(const char* title, const char* color, int width) {
     if (title && strlen(title) > 0) {
         int title_len = strlen(title);
         // Approximation for color codes length
-        int non_visible_len = 15; 
+        // int non_visible_len = 15; 
         int line_len = (width - title_len - 4) / 2; // 4 for " [] "
         if (line_len < 1) line_len = 1;
         
@@ -113,7 +113,7 @@ void print_help(void) {
 // --- دالة السجل (مكتملة الآن) ---
 void log_change(const char *base_path, const char *action, const char *category, const char *key, const char *value) {
     char log_filepath[1024];
-    snprintf(log_filepath, sizeof(log_filepath), "%s/sniper-config.log", base_path);
+    snprintf(log_filepath, sizeof(log_filepath), "%s/config/sniper-config.log", base_path);
 
     FILE *log_file = fopen(log_filepath, "a");
     if (!log_file) {

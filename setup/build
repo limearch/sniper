@@ -7,9 +7,9 @@
 # --- Configuration & Globals ---
 
 # Get the absolute path to the directory containing this script (e.g., /path/to/sniper/bin)
-PROJECT_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 # Go up one level to the project root (e.g., /path/to/sniper)
-# PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
 
 # --- List of all executables in the project ---
 # Paths are relative to PROJECT_ROOT
