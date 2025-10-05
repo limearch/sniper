@@ -1,0 +1,186 @@
+#!/usr/bin/python
+import sys
+import argparse
+import socket
+import time
+import threading
+
+try:
+    import requests
+except ImportError:
+    print("\n\033[91m[ERROR]\033[0m The 'requests' library is not installed.")
+    print("Please install it to use this tool: pip install requests\n")
+    sys.exit(1)
+
+# --- NEW: Rich dependency for help screen ---
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+    rich_available = True
+except ImportError:
+    rich_available = False
+
+# --- Color Definitions (Original) ---
+# Kept for the main application's colored output
+class Colors:
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    CYAN = '\033[96m'
+    MAGENTA = '\033[95m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+
+# --- Spinner Class (Unchanged) ---
+class Spinner:
+    def __init__(self, message="Querying API..."):
+        self.message = message
+        self.stop_running = threading.Event()
+        self.spin_thread = threading.Thread(target=self.spin)
+
+    def start(self):
+        self.spin_thread.start()
+
+    def stop(self):
+        self.stop_running.set()
+        self.spin_thread.join()
+        sys.stdout.write('\r' + ' ' * (len(self.message) + 5) + '\r')
+        sys.stdout.flush()
+
+    def spin(self):
+        spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+        while not self.stop_running.is_set():
+            for char in spinner_chars:
+                if self.stop_running.is_set():
+                    break
+                sys.stdout.write(f'\r{Colors.BLUE}[INFO]{Colors.ENDC} {self.message} {Colors.CYAN}{char}{Colors.ENDC}')
+                sys.stdout.flush()
+                time.sleep(0.1)
+
+# --- Main Lookup Function (Unchanged) ---
+def lookup_target(target):
+    API_URL = f"http://ip-api.com/json/{target}?fields=status,message,country,countryCode,regionName,city,lat,lon,timezone,isp,org,as,query"
+    spinner = Spinner()
+    spinner.start()
+    try:
+        response = requests.get(API_URL, timeout=10)
+        spinner.stop()
+        response.raise_for_status()
+        data = response.json()
+        if data.get("status") == "success":
+            print(f"{Colors.GREEN}[SUCCESS]{Colors.ENDC} Target information retrieved!\n")
+            geo_info = {
+                "IP Address": data.get('query'),
+                "Location": f"{data.get('city', 'N/A')}, {data.get('regionName', 'N/A')}, {data.get('country', 'N/A')}",
+                "Coordinates": f"Lat: {data.get('lat', 'N/A')}, Lon: {data.get('lon', 'N/A')}",
+                "Timezone": data.get('timezone')
+            }
+            net_info = {
+                "ISP": data.get('isp'),
+                "Organization": data.get('org'),
+                "ASN": data.get('as')
+            }
+            print(f"{Colors.BOLD}{Colors.MAGENTA}--- Geo-Location ---{Colors.ENDC}")
+            for key, value in geo_info.items():
+                if value:
+                    print(f"  {Colors.YELLOW}{key:<12}{Colors.ENDC}: {value}")
+            print(f"\n{Colors.BOLD}{Colors.MAGENTA}--- Network ---{Colors.ENDC}")
+            for key, value in net_info.items():
+                if value:
+                    print(f"  {Colors.YELLOW}{key:<12}{Colors.ENDC}: {value}")
+            print()
+        else:
+            error_message = data.get('message', 'Unknown error from API')
+            print(f"{Colors.RED}[ERROR]{Colors.ENDC} API lookup failed: {error_message}")
+            sys.exit(1)
+    except (requests.exceptions.Timeout, requests.exceptions.RequestException) as e:
+        spinner.stop()
+        print(f"{Colors.RED}[ERROR]{Colors.ENDC} A network error occurred: {e}")
+        sys.exit(1)
+
+# --- NEW: Rich Help Screen Function ---
+def show_rich_help():
+    """Displays the custom, rich-formatted help screen for iplookup."""
+    if not rich_available:
+        # Fallback to a simple print if Rich is not installed
+        print("Error: 'rich' library is required for the help screen. Run: pip install rich")
+        sys.exit(1)
+        
+    console = Console()
+    title = Text("SNIPER: iplookup - GeoIP Tool", style="bold magenta", justify="center")
+    
+    usage = Text.from_markup(
+        "[bold]Usage:[/] [yellow]iplookup[/] [cyan]<IP_OR_DOMAIN>[/] [green][OPTIONS][/]"
+    )
+    
+    main_panel_text = """
+[bold]Description:[/b]
+  A fast and simple tool to find geolocation and network information
+  for an IP address or a domain name using the ip-api.com service.
+
+[bold]Arguments:[/b]
+  [cyan]<IP_OR_DOMAIN>[/]       The target IP address or domain name to look up.
+
+[bold]Options:[/b]
+  [green]-h, --help[/]         Show this help message and exit.
+"""
+
+    examples_text = """
+[bold]Examples:[/b]
+  [#] Look up a domain name
+  [yellow]iplookup[/] [cyan]google.com[/]
+
+  [#] Look up a public IP address
+  [yellow]iplookup[/] [cyan]1.1.1.1[/]
+"""
+    
+    console.print(Panel(title, border_style="magenta", padding=(0, 1)))
+    console.print(usage, justify="center")
+    console.print(Panel(Text.from_markup(main_panel_text.strip()), title="Overview", border_style="blue"))
+    console.print(Panel(Text.from_markup(examples_text.strip()), title="Examples", border_style="green"))
+    sys.exit(0)
+
+def main():
+    # --- MODIFIED: Argument Parser Setup ---
+    parser = argparse.ArgumentParser(
+        prog="iplookup",
+        description="GeoIP Lookup Tool",
+        add_help=False # Disable default help
+    )
+    
+    # --- NEW: Manual help argument ---
+    parser.add_argument('-h', '--help', action='store_true', help='Show this help message and exit.')
+    
+    # --- MODIFIED: Positional argument is now optional to allow for --help ---
+    parser.add_argument(
+        "target",
+        nargs='?', # Make it optional
+        default=None,
+        metavar="<IP_OR_DOMAIN>",
+        help="The IP address or domain name to look up."
+    )
+    
+    args = parser.parse_args()
+
+    # --- NEW: Help screen trigger ---
+    # Show help if -h is passed or if no target is provided
+    if args.help or not args.target:
+        show_rich_help()
+    
+    # --- Original pre-flight check and execution logic (Unchanged) ---
+    target = args.target
+    try:
+        if not all(c.isdigit() or c == '.' for c in target):
+            print(f"{Colors.BLUE}[INFO]{Colors.ENDC} Resolving domain: {Colors.CYAN}{target}{Colors.ENDC}")
+            resolved_ip = socket.gethostbyname(target)
+            print(f"{Colors.GREEN}[SUCCESS]{Colors.ENDC} '{target}' resolves to {resolved_ip}")
+    except socket.gaierror:
+        print(f"{Colors.RED}[ERROR]{Colors.ENDC} Could not resolve domain. Please check the name and your connection.")
+        sys.exit(1)
+
+    lookup_target(target)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,234 @@
+#!/usr/bin/python3
+
+import os
+import pathlib
+import sys
+import json
+from rich import print
+from rich.filesize import decimal
+from rich.markup import escape
+from rich.text import Text
+from rich.tree import Tree
+from rich.panel import Panel      # --- NEW IMPORT ---
+from rich.console import Console  # --- NEW IMPORT ---
+from argparse import ArgumentParser
+from datetime import datetime
+
+# --- NEW: Rich Help Screen Function ---
+def show_rich_help():
+    """Displays the custom, rich-formatted help screen for lsmap."""
+    console = Console()
+    title = Text("SNIPER: lsmap - Advanced Directory Walker", style="bold magenta", justify="center")
+    
+    usage = Text.from_markup(
+        "[bold]Usage:[/] [yellow]lsmap[/] [cyan]<DIRECTORY>[/] [green][OPTIONS][/]"
+    )
+    
+    main_panel_text = """
+[bold]Description:[/b]
+  A powerful and beautiful directory walker that displays the folder
+  structure as a tree. It includes advanced filtering and reporting
+  features like size, depth, and disk usage calculation.
+
+[bold]Arguments:[/b]
+  [cyan]<DIRECTORY>[/]         Directory to scan (default: current directory).
+
+[bold]Options:[/b]
+  [green]-h, --help[/]         Show this help message and exit.
+"""
+
+    filtering_panel_text = """
+[bold]Filtering Options:[/b]
+  [green]-f, --files-only[/]   Display files only.
+  [green]-d, --dirs-only[/]    Display directories only.
+  [green]-s, --show-hidden[/]  Show hidden files and directories (names starting with '.').
+  [green]-m, --min-size[/]     Minimum file size to display (e.g., 10k, 1M, 2G).
+  [green]-D, --depth[/]        Maximum depth of subdirectories to scan.
+"""
+
+    reporting_panel_text = """
+[bold]Reporting & Exporting:[/b]
+  [green]-t, --top-size[/]     Display the top N largest files found.
+  [green]-r, --recent-files[/] Display the 10 most recently modified files.
+  [green]-u, --disk-usage[/]   Display total disk usage for the specified directory.
+  [green]-e, --export[/]       Export file list to a specified format (currently 'json').
+"""
+
+    examples_text = """
+[bold]Examples:[/b]
+  [#] Show the structure of the current directory
+  [yellow]lsmap[/]
+
+  [#] Show only python files larger than 10KB in the 'src' directory
+  [yellow]lsmap[/] [cyan]src[/] [green]-f -m 10k --include-ext .py[/]  (Note: --include-ext not yet implemented, example for future)
+
+  [#] Find the 5 largest files in your home directory, up to a depth of 3
+  [yellow]lsmap[/] [cyan]~[/] [green]-D 3 -t 5[/]
+"""
+    
+    console.print(Panel(title, border_style="magenta", padding=(0, 1)))
+    console.print(usage, justify="center")
+    console.print(Panel(Text.from_markup(main_panel_text.strip()), title="Overview", border_style="blue"))
+    console.print(Panel(Text.from_markup(filtering_panel_text.strip()), title="Filtering", border_style="cyan"))
+    console.print(Panel(Text.from_markup(reporting_panel_text.strip()), title="Reporting", border_style="green"))
+    console.print(Panel(Text.from_markup(examples_text.strip()), title="Examples", border_style="yellow"))
+    sys.exit(0)
+
+
+# --- Original Core Functions (Unchanged) ---
+
+def parse_args():
+    # --- MODIFIED: Argument Parser Setup ---
+    parser = ArgumentParser(
+        prog="lsmap",
+        description="Directory walker with additional features.",
+        add_help=False # Disable default help
+    )
+    # --- NEW: Manual help argument ---
+    parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit.")
+
+    # --- Original Arguments (Unchanged) ---
+    parser.add_argument("directory", nargs="?", default=".", help="Directory to scan")
+    parser.add_argument("-f", "--files-only", action="store_true", help="Display files only")
+    parser.add_argument("-d", "--dirs-only", action="store_true", help="Display directories only")
+    parser.add_argument("-s", "--show-hidden", action="store_true", help="Show hidden files and directories")
+    parser.add_argument("-m", "--min-size", type=str, help="Minimum file size to display (e.g., 10k, 1M)")
+    parser.add_argument("-D", "--depth", type=int, default=None, help="Max depth to scan")
+    parser.add_argument("-t", "--top-size", type=int, default=None, help="Display top N largest files")
+    parser.add_argument("-r", "--recent-files", action="store_true", help="Display most recently modified files")
+    parser.add_argument("-e", "--export", choices=["json"], help="Export result in JSON format")
+    parser.add_argument("-u", "--disk-usage", action="store_true", help="Display disk usage for directories")
+    
+    return parser.parse_args()
+
+def convert_size(size_str):
+    """Convert size string (e.g., 1M, 10k) to bytes."""
+    size_str = size_str.lower()
+    size_map = {'k': 1024, 'm': 1024**2, 'g': 1024**3}
+    if size_str[-1] in size_map:
+        return int(size_str[:-1]) * size_map[size_str[-1]]
+    return int(size_str)
+
+def walk_directory(directory: pathlib.Path, tree: Tree, args, current_depth=0, max_depth=None):
+    """Recursively build a Tree with directory contents and count folders and files."""
+    num_folders = 0
+    num_files = 0
+    all_files = []
+    try:
+        paths = sorted(list(directory.iterdir()), key=lambda p: p.name.lower())
+        for path in paths:
+            if max_depth is not None and current_depth >= max_depth:
+                continue
+            if not args.show_hidden and path.name.startswith("."):
+                continue
+            if path.is_dir():
+                if not args.files_only:
+                    num_folders += 1
+                    style = "dim" if path.name.startswith("__") else ""
+                    branch = tree.add(
+                        f"[bold magenta]:open_file_folder: [link file://{path}]{escape(path.name)}",
+                        style=style, guide_style=style,
+                    )
+                    sub_folders, sub_files, sub_all_files = walk_directory(path, branch, args, current_depth + 1, max_depth)
+                    num_folders += sub_folders
+                    num_files += sub_files
+                    all_files.extend(sub_all_files)
+            else:
+                file_size = path.stat().st_size
+                if args.min_size and file_size < convert_size(args.min_size):
+                    continue
+                num_files += 1
+                all_files.append((path, file_size, path.stat().st_mtime))
+                if not args.dirs_only:
+                    text_filename = Text(path.name, "green")
+                    text_filename.highlight_regex(r"\..*$", "bold red")
+                    text_filename.stylize(f"link file://{path}")
+                    text_filename.append(f" ({decimal(file_size)})", "blue")
+                    icon = "🐍 " if path.suffix == ".py" else "📄 "
+                    tree.add(Text(icon) + text_filename)
+    except PermissionError:
+        tree.add("[bold red]🚫 Permission Denied[/bold red]")
+    return num_folders, num_files, all_files
+
+def disk_usage(directory):
+    """Calculate disk usage for a directory."""
+    total_size = 0
+    try:
+        for dirpath, dirnames, filenames in os.walk(directory):
+            if not any(part.startswith('.') for part in dirpath.split(os.sep)):
+                for f in filenames:
+                    if not f.startswith('.'):
+                        fp = os.path.join(dirpath, f)
+                        if not os.path.islink(fp):
+                            total_size += os.path.getsize(fp)
+    except PermissionError:
+        pass
+    return total_size
+
+def main():
+    args = parse_args()
+    
+    # --- NEW: Help screen trigger ---
+    # Show help if -h is passed and no other arguments are provided.
+    # We check sys.argv because nargs='?' makes 'directory' tricky.
+    if args.help:
+        show_rich_help()
+
+    directory = pathlib.Path(args.directory).resolve()
+    
+    # --- Original execution logic (Unchanged, with a small addition) ---
+    
+    # Check if directory exists before proceeding
+    if not directory.is_dir():
+        print(f"[bold red]Error:[/] Directory '{directory}' not found.")
+        sys.exit(1)
+
+    tree = Tree(
+        f":open_file_folder: [link file://{directory}]{directory}",
+        guide_style="bold bright_blue",
+    )
+    
+    # A list to collect reports before printing the tree
+    reports = []
+
+    num_folders, num_files, all_files = walk_directory(directory, tree, args, max_depth=args.depth)
+    
+    if args.top_size:
+        all_files.sort(key=lambda x: x[1], reverse=True)
+        top_files = all_files[:args.top_size]
+        reports.append("\n[bold cyan]--- Top Largest Files ---[/bold cyan]")
+        for file_path, size, _ in top_files:
+            reports.append(f"📄 {escape(str(file_path.relative_to(directory)))} ({decimal(size)})")
+
+    if args.recent_files:
+        all_files.sort(key=lambda x: x[2], reverse=True)
+        recent = all_files[:10]
+        reports.append("\n[bold cyan]--- Recently Modified Files ---[/bold cyan]")
+        for file_path, _, mtime in recent:
+            reports.append(f"📄 {escape(str(file_path.relative_to(directory)))} ([dim]{datetime.fromtimestamp(mtime):%Y-%m-%d %H:%M}[/dim])")
+
+    if args.disk_usage:
+        total_size = disk_usage(directory)
+        reports.append(f"\n[bold cyan]--- Disk Usage ---[/bold cyan]\nTotal for [i]{directory.name}[/i]: {decimal(total_size)}")
+
+    if args.export == "json":
+        json_output = [{"path": str(p), "size": s, "mtime": m} for p, s, m in all_files]
+        output_filename = f"{directory.name}_directory_structure.json"
+        with open(output_filename, "w") as f:
+            json.dump(json_output, f, indent=4)
+        reports.append(f"\n[bold green]✅ Exported JSON to {output_filename}[/bold green]")
+
+    # Print the tree first
+    print(tree)
+    
+    # Then print all reports
+    if reports:
+        for report in reports:
+            print(report)
+
+    # Finally print the summary
+    print(f"\n[bold]Summary:[/bold] {num_folders} directories, {num_files} files found.")
+
+
+if __name__ == "__main__":
+    main()

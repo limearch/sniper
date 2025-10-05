@@ -1,0 +1,1 @@
+# sniper-project-init\n\nProject scaffolding templates and a tiny launcher.\n

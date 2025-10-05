@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+import sys
+import argparse
+from pathlib import Path
+
+# Add the parent directory to the Python path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from file_info_tool.core import FileAnalyzer, console
+
+try:
+    from rich.panel import Panel
+    from rich.text import Text
+except ImportError:
+    # This should have been caught in core.py, but as a safeguard
+    print("Error: 'rich' library is required. Run: pip install rich")
+    sys.exit(1)
+
+def show_rich_help():
+    """Displays the custom, rich-formatted help screen."""
+    title = Text("SNIPER: file-info - Detailed File Analyzer", style="bold magenta", justify="center")
+    
+    usage = Text.from_markup(
+        "[bold]Usage:[/] [yellow]file-info[/] [cyan]<PATH>[/]"
+    )
+    
+    main_panel_text = """
+[bold]Description:[/b]
+  A comprehensive tool to display detailed information about any file
+  or directory. It provides a clean, organized report covering
+  metadata, timestamps, permissions, and file hashes.
+
+[bold]Arguments:[/b]
+  [cyan]<PATH>[/]               The file or directory to analyze.
+
+[bold]Options:[/b]
+  [green]-h, --help[/]         Show this help message and exit.
+"""
+
+    features_text = """
+[bold]Information Displayed:[/b]
+  • [cyan]Basic Info[/]: Name, full path, type, and size.
+  • [yellow]Timestamps[/]: Creation, last modification, and last access times.
+  • [blue]Permissions[/]: Symbolic (rwx) and octal permissions, plus owner/group.
+  • [red]File Hashes[/]: MD5, SHA1, and SHA256 for integrity checks (files only).
+"""
+
+    examples_text = """
+[bold]Examples:[/b]
+  [#] Get info about a Python script
+  [yellow]file-info[/] [cyan]my_script.py[/]
+
+  [#] Analyze a directory (calculates total size)
+  [yellow]file-info[/] [cyan]./my_project/[/]
+"""
+    
+    console.print(Panel(title, border_style="magenta", padding=(0, 1)))
+    console.print(usage, justify="center")
+    console.print(Panel(Text.from_markup(main_panel_text.strip()), title="Overview", border_style="blue"))
+    console.print(Panel(Text.from_markup(features_text.strip()), title="Features", border_style="green"))
+    console.print(Panel(Text.from_markup(examples_text.strip()), title="Examples", border_style="yellow"))
+    sys.exit(0)
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="file-info",
+        description="Displays detailed information about a file or directory.",
+        add_help=False
+    )
+    parser.add_argument("path", nargs='?', default=None, help="The file or directory to analyze.")
+    parser.add_argument("-h", "--help", action="store_true", help="Show this help message.")
+    
+    args = parser.parse_args()
+
+    if args.help or not args.path:
+        show_rich_help()
+
+    try:
+        analyzer = FileAnalyzer()
+        analyzer.analyze(args.path)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Operation cancelled by user.[/yellow]")
+
+if __name__ == "__main__":
+    main()

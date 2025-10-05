@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+import os
+import sys
+import argparse
+from pathlib import Path
+
+# Add the parent directory of 'bin' to the Python path
+# This allows us to import from 'format_tool'
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from format_tool.utils import show_rich_help
+from format_tool.core import format_path
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="format",
+        description="A universal code formatter.",
+        add_help=False # We use our own rich help
+    )
+    
+    # --- Arguments ---
+    parser.add_argument("path", nargs='?', default=None, help="The file or directory to format.")
+    parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
+    parser.add_argument("-s", "--spaces", type=int, default=4, help="Number of spaces for indentation.")
+    parser.add_argument("-r", "--recursive", action="store_true", default=True, help="Recursively format files (default).")
+    parser.add_argument("-b", "--backup", action="store_true", help="Create a '.bak' backup of each file.")
+    parser.add_argument("-f", "--filter", nargs='+', dest="filter_ext", help="Only format files with these extensions.")
+    parser.add_argument("-c", "--check", action="store_true", dest="check_mode", help="Check mode: don't modify files, just report.")
+    parser.add_argument("-p", "--parallel", action="store_true", help="Enable parallel processing.")
+    
+    args = parser.parse_args()
+
+    if args.help or not args.path:
+        show_rich_help()
+        sys.exit(0)
+
+    # Convert filter extensions to a set for faster lookup, ensuring they start with a dot
+    filter_set = set("." + ext.lstrip('.') for ext in args.filter_ext) if args.filter_ext else None
+    
+    exit_code = format_path(
+        path=args.path,
+        spaces=args.spaces,
+        backup=args.backup,
+        verbose=args.verbose,
+        filter_ext=filter_set,
+        check_mode=args.check_mode,
+        parallel=args.parallel
+    )
+    
+    sys.exit(exit_code)
+
+if __name__ == "__main__":
+    main()
+    

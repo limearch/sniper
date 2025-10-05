@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+import sys
+import argparse
+from pathlib import Path
+
+# --- CORRECTED LOGIC TO FIND THE PACKAGE ---
+
+# Get the directory of the current script (e.g., .../sniper/tools/social-dive/bin)
+script_dir = Path(__file__).resolve().parent
+
+# Go up one level to the tool's root directory (e.g., .../sniper/tools/social-dive)
+tool_root = script_dir.parent
+
+# Add the tool's root directory to the Python path.
+# This allows Python to find the 'social_dive_tool' package inside it.
+sys.path.insert(0, str(tool_root))
+
+# --- CORRECTED IMPORTS ---
+# Now we can import from the correct package name and modules
+from social_dive_tool.utils import show_rich_help, get_categories
+from social_dive_tool.core import run_scan, console
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="social-dive",
+        description="Social-Dive: An OSINT username checker.",
+        add_help=False
+    )
+    
+    # --- Arguments (Unchanged) ---
+    parser.add_argument("username", nargs='?', default=None, help="The username to search for.")
+    parser.add_argument("-h", "--help", action="store_true", help="Show this help message.")
+    parser.add_argument("-o", "--output", help="Export results to a file (formats: txt, csv, json).")
+    parser.add_argument("-c", "--category", help="Search within a specific category (e.g., Social, Gaming).")
+    parser.add_argument("--list-categories", action="store_true", help="List all available site categories.")
+    parser.add_argument("-p", "--proxy", help="Use a proxy for requests (e.g., http://127.0.0.1:8080).")
+    parser.add_argument("-t", "--timeout", type=int, default=10, help="Set request timeout in seconds.")
+    
+    args = parser.parse_args()
+
+    # --- Logic (Unchanged) ---
+    if args.help or (not args.username and not args.list_categories):
+        show_rich_help()
+        sys.exit(0) # Exit after showing help
+
+    if args.list_categories:
+        console.print("[bold cyan][*] Available Categories:[/]")
+        for category in get_categories():
+            console.print(f"  - {category}")
+        sys.exit(0)
+
+    try:
+        run_scan(args)
+    except KeyboardInterrupt:
+        console.print("\n[bold yellow][!] Scan interrupted by user.[/]")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,565 @@
+
+
+--- File: run.h | Language: C/C++ Header ---
+
+// File: tools/run/run.h | Language: C/C++ Header
+
+#ifndef RUN_H
+#define RUN_H
+
+// This header can be used for function declarations if the project grows.
+// For a single-file tool like this, it's optional but good practice.
+
+void print_usage(const char* prog_name);
+
+#endif // RUN_H
+
+--- File: run_tool.c | Language: C ---
+
+#include "utils.h"
+#include "language.h"
+#include "executor.h"
+#include "features.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <getopt.h>
+#include <unistd.h>
+
+// --- Main Application Logic ---
+
+static void print_help(const char* prog_name) {
+    // A comprehensive help message
+    printf("%sUsage: %s [OPTIONS] <file> [args...]\n", C_BOLD, prog_name);
+    // ... Help text for all features ...
+}
+
+int main(int argc, char *argv[]) {
+    bool do_time = false, do_post = false, do_git = false, is_interactive = false;
+    bool is_verbose = false, is_watch = false, is_parallel = false;
+    long time_limit = 0, mem_limit = 0;
+
+    struct option long_options[] = {
+        {"time", no_argument, 0, 't'},
+        {"post", no_argument, 0, 'p'},
+        {"git-update", no_argument, 0, 'g'},
+        {"interactive", no_argument, 0, 'i'},
+        {"verbose", no_argument, 0, 'v'},
+        {"watch", no_argument, 0, 'w'},
+        {"parallel", no_argument, 0, 'j'},
+        {"no-color", no_argument, 0, 1},
+        {"limit-time", required_argument, 0, 2},
+        {"limit-mem", required_argument, 0, 3},
+        {"help", no_argument, 0, 'h'},
+        {0, 0, 0, 0}
+    };
+
+    int opt;
+    while ((opt = getopt_long(argc, argv, "tpgivwj", long_options, NULL)) != -1) {
+        switch (opt) {
+            case 't': do_time = true; break;
+            case 'p': do_post = true; break;
+            case 'g': do_git = true; break;
+            case 'i': is_interactive = true; break;
+            case 'v': is_verbose = true; break;
+            case 'w': is_watch = true; break;
+            case 'j': is_parallel = true; break;
+            case 1: g_use_color = false; break;
+            case 2: time_limit = atol(optarg); break;
+            case 3: mem_limit = atol(optarg); break;
+            case 'h': print_help(argv[0]); return 0;
+            default: return 1;
+        }
+    }
+    
+    // --- Mode-switching features ---
+    if(is_interactive) { run_interactive_mode(is_verbose); return 0; }
+    if(optind >= argc) { print_help(argv[0]); return 1; }
+    if(is_watch) { run_watch_mode(argv[optind], argv, is_verbose); return 0; }
+    if(is_parallel) { run_parallel_mode(argc, argv, optind, is_verbose); return 0; }
+
+    const char* filepath = argv[optind];
+    const LanguageRecipe* recipe = detect_language(filepath);
+    
+    if (!recipe) {
+        fprintf(stderr, "%sError: Unsupported or unrecognized file type for '%s'.%s\n", C_RED, filepath, C_RESET);
+        return 1;
+    }
+    printf("%s[INFO]%s Detected language: %s\n", C_CYAN, C_RESET, recipe->name);
+
+    char* temp_executable = NULL;
+    char** runner_argv = NULL;
+    int runner_argc = 0;
+
+    // --- Compilation Phase (if needed) ---
+    if (recipe->compiler) {
+        if (!check_command(recipe->compiler)) { /* ... error handling ... */ return 1; }
+        
+        temp_executable = make_output_name(filepath);
+        if (!temp_executable) return 1;
+
+        // Simplified compiler argv build
+        char* compiler_argv[] = {(char*)recipe->compiler, (char*)filepath, "-o", temp_executable, NULL};
+        printf("%s[COMPILE]%s Compiling with %s...\n", C_CYAN, C_RESET, recipe->compiler);
+        
+        ExecutionResult compile_res = execute_command(compiler_argv, is_verbose, 0, 0);
+        if (compile_res.exit_code != 0) {
+            fprintf(stderr, "%sCompilation Failed!%s\n", C_RED, C_RESET);
+            free(temp_executable);
+            return 1;
+        }
+
+        runner_argc = argc - optind;
+        runner_argv = malloc((runner_argc + 1) * sizeof(char*));
+        runner_argv[0] = temp_executable;
+        for (int i = 1; i < runner_argc; ++i) runner_argv[i] = argv[optind + i];
+        runner_argv[runner_argc] = NULL;
+    } else { // Interpreted language
+        if (!check_command(recipe->interpreter)) { /* ... error handling ... */ return 1; }
+        
+        runner_argc = argc - optind + 1;
+        runner_argv = malloc((runner_argc + 1) * sizeof(char*));
+        runner_argv[0] = (char*)recipe->interpreter;
+        for (int i = 1; i < runner_argc; ++i) runner_argv[i] = argv[optind + i - 1];
+        runner_argv[runner_argc] = NULL;
+    }
+
+    // --- Execution Phase ---
+    printf("%s[EXECUTE]%s Running '%s'...\n\n", C_CYAN, C_RESET, filepath);
+    ExecutionResult run_res = execute_command(runner_argv, is_verbose, time_limit, mem_limit);
+
+    // --- Reporting Phase ---
+    printf("\n%s[REPORT]%s Execution finished with exit code %d.\n", C_CYAN, C_RESET, run_res.exit_code);
+    if(do_time) {
+        printf("%s[REPORT]%s Real time: %.3fs, User time: %.3fs, Sys time: %.3fs\n", 
+            C_CYAN, C_RESET, run_res.real_time_sec, 
+            run_res.usage.ru_utime.tv_sec + run_res.usage.ru_utime.tv_usec / 1e6,
+            run_res.usage.ru_stime.tv_sec + run_res.usage.ru_stime.tv_usec / 1e6);
+        printf("%s[REPORT]%s Max memory usage: %ld KB\n", C_CYAN, C_RESET, run_res.usage.ru_maxrss);
+    }
+    
+    if (run_res.exit_code == 0 && do_post) {
+        // ... call post function ...
+    }
+
+    free(temp_executable);
+    free(runner_argv);
+    return run_res.exit_code;
+}
+
+--- File: language.h | Language: C/C++ Header ---
+
+#ifndef LANGUAGE_H
+#define LANGUAGE_H
+
+#include <stdbool.h>
+
+// Defines how to handle a programming language
+typedef struct {
+    const char* name;
+    const char* extension;
+    const char* shebang_keyword;
+    const char* content_keyword;
+    const char* interpreter;
+    const char* compiler;
+    const char* executor_prefix;
+    const char** compiler_args;
+} LanguageRecipe;
+
+// --- Function Prototypes ---
+
+// Finds a recipe that matches the given file path.
+// It checks extension, then shebang, then content.
+const LanguageRecipe* detect_language(const char* filepath);
+
+#endif // LANGUAGE_H
+
+--- File: language.c | Language: C ---
+
+#include "language.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+// --- Language Recipes Database ---
+const char* C_ARGS[] = {"-o", NULL};
+const char* CPP_ARGS[] = {"-o", NULL};
+const char* RUST_ARGS[] = {"-o", NULL};
+
+LanguageRecipe recipes[] = {
+    {"Python", ".py", "/usr/bin/python", "import ", "python3", NULL, NULL, NULL},
+    {"JavaScript", ".js", "/usr/bin/node", "console.log", "node", NULL, NULL, NULL},
+    {"Shell", ".sh", "/bin/bash", "#!/bin/", "bash", NULL, NULL, NULL},
+    {"Dart", ".dart", "/usr/bin/dart", "void main()", "dart", NULL, NULL, NULL},
+    {"Ruby", ".rb", "/usr/bin/ruby", "puts ", "ruby", NULL, NULL, NULL},
+    {"Go", ".go", NULL, "package main", "go", NULL, "run", NULL},
+    {"C", ".c", NULL, "#include <stdio.h>", NULL, "gcc", "./", C_ARGS},
+    {"C++", ".cpp", NULL, "#include <iostream>", NULL, "g++", "./", CPP_ARGS},
+    {"Rust", ".rs", NULL, "fn main()", NULL, "rustc", "./", RUST_ARGS},
+    {"Java", ".java", NULL, "public static void main", NULL, "javac", "java", NULL},
+    {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL} // Sentinel
+};
+
+// --- Language Detection Logic ---
+const LanguageRecipe* detect_by_shebang_or_content(const char* filepath) {
+    FILE* fp = fopen(filepath, "r");
+    if (!fp) return NULL;
+
+    char line[256] = {0};
+    if (fgets(line, sizeof(line), fp) == NULL) {
+        fclose(fp);
+        return NULL;
+    }
+    fclose(fp); // Close after reading the first line
+
+    // 1. Check Shebang
+    if (strncmp(line, "#!", 2) == 0) {
+        for (int i = 0; recipes[i].name != NULL; ++i) {
+            if (recipes[i].shebang_keyword && strstr(line, recipes[i].shebang_keyword)) {
+                return &recipes[i];
+            }
+        }
+    }
+    
+    // 2. Check Content Keyword
+    for (int i = 0; recipes[i].name != NULL; ++i) {
+        if (recipes[i].content_keyword && strstr(line, recipes[i].content_keyword)) {
+            return &recipes[i];
+        }
+    }
+
+    return NULL;
+}
+
+
+const LanguageRecipe* detect_language(const char* filepath) {
+    const char* file_ext = strrchr(filepath, '.');
+
+    // 1. Detect by extension first (most reliable)
+    if (file_ext) {
+        for (int i = 0; recipes[i].name != NULL; ++i) {
+            if (strcmp(file_ext, recipes[i].extension) == 0) {
+                return &recipes[i];
+            }
+        }
+    }
+
+    // 2. If no extension match, try shebang or content
+    return detect_by_shebang_or_content(filepath);
+}
+
+--- File: executor.h | Language: C/C++ Header ---
+
+#ifndef EXECUTOR_H
+#define EXECUTOR_H
+
+#include <stdbool.h>
+#include <sys/resource.h>
+
+// Struct to hold the results of an execution
+typedef struct {
+    int exit_code;
+    double real_time_sec;
+    struct rusage usage; // For memory and CPU time
+} ExecutionResult;
+
+// --- Function Prototypes ---
+
+// Executes a command securely and collects performance data.
+ExecutionResult execute_command(char *const argv[], bool verbose, long time_limit_sec, long mem_limit_kb);
+
+#endif // EXECUTOR_H
+
+--- File: executor.c | Language: C ---
+
+#include "executor.h"
+#include "utils.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <string.h>
+#include <errno.h>
+#include <signal.h>
+
+volatile pid_t g_child_pid = 0;
+
+void forward_signal_handler(int signum) {
+    if (g_child_pid != 0) {
+        kill(g_child_pid, signum);
+    }
+}
+
+ExecutionResult execute_command(char *const argv[], bool verbose, long time_limit_sec, long mem_limit_kb) {
+    ExecutionResult result = { .exit_code = -1, .real_time_sec = 0.0 };
+    struct timespec start, end;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        return result;
+    }
+
+    if (pid == 0) { // Child process
+        // Set resource limits if specified
+        if (mem_limit_kb > 0) {
+            struct rlimit mem_rlim;
+            mem_rlim.rlim_cur = mem_rlim.rlim_max = mem_limit_kb * 1024; // to bytes
+            if (setrlimit(RLIMIT_AS, &mem_rlim) != 0) {
+                perror("setrlimit(RLIMIT_AS)");
+                exit(126);
+            }
+        }
+        if (time_limit_sec > 0) {
+            struct rlimit time_rlim;
+            time_rlim.rlim_cur = time_rlim.rlim_max = time_limit_sec;
+            if (setrlimit(RLIMIT_CPU, &time_rlim) != 0) {
+                perror("setrlimit(RLIMIT_CPU)");
+                exit(126);
+            }
+        }
+        
+        execvp(argv[0], argv);
+        fprintf(stderr, "%sError executing '%s': %s%s\n", C_RED, argv[0], strerror(errno), C_RESET);
+        exit(127);
+    } else { // Parent process
+        g_child_pid = pid;
+        int status;
+        wait4(pid, &status, 0, &result.usage);
+        g_child_pid = 0;
+
+        if (WIFEXITED(status)) {
+            result.exit_code = WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+            int term_sig = WTERMSIG(status);
+            fprintf(stderr, "%s\nProcess terminated by signal %d (%s)%s\n", C_YELLOW, term_sig, strsignal(term_sig), C_RESET);
+            result.exit_code = 128 + term_sig;
+        }
+    }
+    
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    result.real_time_sec = get_time_diff(&start, &end);
+    return result;
+}
+
+--- File: features.c | Language: C ---
+
+#include "features.h"
+#include "utils.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <time.h>
+
+void run_interactive_mode(bool verbose) {
+    printf("Entering interactive mode. Type 'exit' to quit.\n");
+    char *line = NULL;
+    size_t len = 0;
+
+    while (1) {
+        printf("%s>> %s", C_BOLD, C_RESET);
+        if (getline(&line, &len, stdin) == -1) break;
+        if (line[strlen(line) - 1] == '\n') line[strlen(line) - 1] = '\0';
+        if (strcmp(line, "exit") == 0) break;
+        if (strlen(line) == 0) continue;
+        
+        char *const argv[] = {"/bin/sh", "-c", line, NULL};
+        
+        pid_t pid = fork();
+        if (pid == 0) {
+            execv(argv[0], argv);
+            perror("execv");
+            exit(1);
+        }
+        wait(NULL);
+    }
+    free(line);
+}
+
+void run_watch_mode(const char* filepath, char** argv, bool verbose) {
+    printf("%s[WATCH]%s Watching %s for changes...\n", C_CYAN, C_RESET, filepath);
+    time_t last_mtime = get_file_mtime(filepath);
+
+    while (1) {
+        sleep(1);
+        time_t current_mtime = get_file_mtime(filepath);
+        if (current_mtime != last_mtime) {
+            printf("\n%s[WATCH]%s File changed! Rerunning...\n", C_CYAN, C_RESET);
+            last_mtime = current_mtime;
+            
+            pid_t pid = fork();
+            if (pid == 0) {
+                // Child reruns the original command but without --watch
+                execvp(argv[0], argv);
+                perror("execvp");
+                exit(1);
+            }
+            wait(NULL);
+            printf("%s[WATCH]%s Watching %s for changes...\n", C_CYAN, C_RESET, filepath);
+        }
+    }
+}
+
+
+void run_parallel_mode(int argc, char* argv[], int optind, bool verbose) {
+    int num_files = argc - optind;
+    pid_t* pids = malloc(num_files * sizeof(pid_t));
+    if (!pids) { perror("malloc"); return; }
+    
+    printf("%s[PARALLEL]%s Starting %d jobs...\n", C_CYAN, C_RESET, num_files);
+    
+    for (int i = 0; i < num_files; ++i) {
+        pids[i] = fork();
+        if (pids[i] == 0) { // Child process
+            char* file_to_run = argv[optind + i];
+            char* child_argv[] = {argv[0], file_to_run, NULL}; // Simplified for example
+            printf("%s[PARALLEL - %s]%s Starting...\n", C_GREEN, file_to_run, C_RESET);
+            execvp(child_argv[0], child_argv);
+            perror("execvp");
+            exit(1);
+        }
+    }
+
+    // Wait for all children
+    int finished_count = 0;
+    while(finished_count < num_files) {
+        int status;
+        pid_t finished_pid = wait(&status);
+        if (finished_pid > 0) {
+             finished_count++;
+             // Find which file finished
+             for(int i=0; i < num_files; ++i) {
+                 if(pids[i] == finished_pid) {
+                     if(WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+                         printf("%s[PARALLEL - %s]%s Finished Successfully.%s\n", C_GREEN, argv[optind+i], C_BOLD, C_RESET);
+                     } else {
+                         printf("%s[PARALLEL - %s]%s Finished with an Error.%s\n", C_RED, argv[optind+i], C_BOLD, C_RESET);
+                     }
+                     break;
+                 }
+             }
+        }
+    }
+    
+    free(pids);
+}
+
+--- File: utils.h | Language: C/C++ Header ---
+
+#ifndef UTILS_H
+#define UTILS_H
+
+#include <stdbool.h>
+#include <time.h>
+
+// --- Global Options ---
+extern bool g_use_color;
+
+// --- ANSI Color Macros (respects --no-color) ---
+#define C_RESET   (g_use_color ? "\x1B[0m" : "")
+#define C_RED     (g_use_color ? "\x1B[31m" : "")
+#define C_GREEN   (g_use_color ? "\x1B[32m" : "")
+#define C_YELLOW  (g_use_color ? "\x1B[33m" : "")
+#define C_CYAN    (g_use_color ? "\x1B[36m" : "")
+#define C_BOLD    (g_use_color ? "\x1B[1m" : "")
+
+// --- Function Prototypes ---
+
+// Checks if a command exists in the system's PATH.
+int check_command(const char *name);
+
+// Creates a temporary executable name from a source file path.
+// Caller must free the returned string.
+char *make_output_name(const char *input_path);
+
+// Calculates the time difference between two timespec structs.
+double get_time_diff(struct timespec *start, struct timespec *end);
+
+// Reads a file's modification time.
+time_t get_file_mtime(const char* filepath);
+
+#endif // UTILS_H
+
+--- File: utils.c | Language: C ---
+
+#include "utils.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <limits.h>
+#include <libgen.h>
+#include <sys/stat.h>
+
+// --- Global Options Definition ---
+bool g_use_color = true; // Enabled by default
+
+int check_command(const char *name) {
+    char *path_env = getenv("PATH");
+    if (path_env == NULL) return 0;
+    char *path_env_copy = strdup(path_env);
+    if (path_env_copy == NULL) { perror("strdup"); return 0; }
+    
+    int found = 0;
+    char full_path[PATH_MAX];
+    char *dir = strtok(path_env_copy, ":");
+    while (dir != NULL) {
+        snprintf(full_path, sizeof(full_path), "%s/%s", dir, name);
+        if (access(full_path, X_OK) == 0) {
+            found = 1;
+            break;
+        }
+        dir = strtok(NULL, ":");
+    }
+    free(path_env_copy);
+    return found;
+}
+
+char *make_output_name(const char *input_path) {
+    char *input_copy = strdup(input_path);
+    if (!input_copy) { perror("strdup"); return NULL; }
+    
+    char *base = basename(input_copy);
+    char *dot = strrchr(base, '.');
+    if (dot != NULL) *dot = '\0';
+
+    // Create name in a temporary directory for cleanliness
+    char temp_path[PATH_MAX];
+    snprintf(temp_path, sizeof(temp_path), "/tmp/%s_%ld", base, (long)getpid());
+    
+    free(input_copy);
+    char *output_name = strdup(temp_path);
+    if (!output_name) perror("strdup");
+    return output_name;
+}
+
+double get_time_diff(struct timespec *start, struct timespec *end) {
+    return (end->tv_sec - start->tv_sec) + (end->tv_nsec - start->tv_nsec) / 1e9;
+}
+
+time_t get_file_mtime(const char* filepath) {
+    struct stat statbuf;
+    if (stat(filepath, &statbuf) != 0) {
+        return (time_t)-1;
+    }
+    return statbuf.st_mtime;
+}
+
+--- File: features.h | Language: C/C++ Header ---
+
+#ifndef FEATURES_H
+#define FEATURES_H
+
+#include <stdbool.h>
+
+// --- Function Prototypes ---
+void run_interactive_mode(bool verbose);
+void run_watch_mode(const char* filepath, char** argv, bool verbose);
+void run_parallel_mode(int argc, char* argv[], int optind, bool verbose);
+
+#endif // FEATURES_H

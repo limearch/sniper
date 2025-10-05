@@ -1,0 +1,142 @@
+#!/usr/bin/python3
+# ^ We use the absolute path for maximum reliability in Termux
+
+import sys
+import argparse
+import os
+
+# --- Step 1: Graceful Rich Import ---
+# Try to import Rich. If it fails, print a helpful, colored message and exit.
+try:
+    from rich.console import Console
+    from rich.syntax import Syntax
+    from rich.panel import Panel
+    from rich.text import Text
+    from rich.theme import Theme
+except ImportError:
+    # Use basic prints if Rich isn't available
+    print("\033[91m[ERROR]\033[0m The 'rich' library is not installed.")
+    print("Please install it to use this tool: \033[93mpip install rich\033[0m")
+    sys.exit(1)
+
+# --- Step 2: Setup Console with a Custom Theme ---
+# This theme allows us to use simple names for colors like "info", "success", "error"
+custom_theme = Theme({
+    "info": "blue",
+    "success": "green",
+    "warn": "yellow",
+    "error": "bold red"
+})
+console = Console(theme=custom_theme)
+
+# --- Step 3: Core Function to Display the File ---
+def display_source_code(file_path, theme, show_line_numbers, word_wrap):
+    """
+    Reads a file and prints it to the console with syntax highlighting.
+    """
+    try:
+        # Check if the path is a directory
+        if os.path.isdir(file_path):
+            console.print(f"'{file_path}' is a directory, not a file.", style="error")
+            return
+
+        # Syntax.from_path is the most robust way to do this.
+        # It handles file reading, language detection, and error handling.
+        syntax = Syntax.from_path(
+            file_path,
+            theme=theme,
+            line_numbers=show_line_numbers,
+            word_wrap=word_wrap
+        )
+        
+        console.rule(f"[bold cyan]Source: {file_path}[/bold cyan]", style="cyan")
+        console.print(syntax)
+        console.rule(style="cyan")
+
+    except FileNotFoundError:
+        console.print(f"The file '{file_path}' was not found.", style="error")
+    except Exception as e:
+        # This will catch errors if the file is binary or has encoding issues
+        console.print(f"Could not read or process the file: {e}", style="error")
+
+# --- Step 4: Argument Parsing and Help Screen ---
+def main():
+    parser = argparse.ArgumentParser(
+        add_help=False, # Disable default help to use our own
+        description="A tool to view source code with syntax highlighting."
+    )
+    parser.add_argument(
+        "file_path",
+        metavar="<FILE_PATH>",
+        nargs='?', # Make it optional so --help can be called alone
+        help="The path to the source code file to display."
+    )
+    parser.add_argument(
+        "-t", "--theme",
+        default="monokai",
+        help="The color theme for syntax highlighting. (e.g., monokai, dracula, solarized-dark)"
+    )
+    parser.add_argument(
+        "-n", "--no-lines",
+        action="store_false",
+        dest="line_numbers",
+        help="Disable line numbers."
+    )
+    parser.add_argument(
+        "-w", "--no-wrap",
+        action="store_false",
+        dest="word_wrap",
+        help="Disable word wrapping for long lines."
+    )
+    parser.add_argument(
+        '-h', '--help',
+        action='store_true',
+        help='Show this help message and exit.'
+    )
+
+    args = parser.parse_args()
+
+    # --- Custom Help Screen Logic ---
+    if args.help or not args.file_path:
+        title = Text("SNIPER: view-source", style="bold magenta", justify="center")
+        description = Text(
+            "A tool to view source code with syntax highlighting.",
+            style="info"
+        )
+        
+        usage = Text.from_markup(
+            "[bold]Usage:[/] [yellow]view-source[/] [cyan]<FILE_PATH>[/] [green][OPTIONS][/]"
+        )
+        
+        options_text = """
+[bold]Arguments:[/b]
+  [cyan]<FILE_PATH>[/]       The source file to display.
+
+[bold]Options:[/b]
+  [green]-t, --theme[/]      Set the color theme (default: monokai).
+  [green]-n, --no-lines[/]   Disable line numbers.
+  [green]-w, --no-wrap[/]    Disable word wrapping.
+  [green]-h, --help[/]       Show this help message.
+"""
+        
+        examples_text = """
+[bold]Examples:[/b]
+  [yellow]view-source[/] [cyan]my_script.py[/]
+  [yellow]view-source[/] [cyan]main.js[/] [green]--theme dracula[/] [green]--no-lines[/]
+  [yellow]view-source[/] [cyan]main.js[/] [green]--theme solarized-dark[/] [green][/]
+  [yellow]view-source[/] [cyan]main.js[/] [green]--theme monokai[/] [green][/]
+"""
+        
+        console.print(Panel(title, border_style="magenta"))
+        console.print(description)
+        console.print(usage)
+        console.print(Panel(Text.from_markup(options_text), title="Details", border_style="blue"))
+        console.print(Panel(Text.from_markup(examples_text), title="Examples", border_style="green"))
+        sys.exit(0)
+
+    # --- Main Execution Logic ---
+    display_source_code(args.file_path, args.theme, args.line_numbers, args.word_wrap)
+
+# --- Step 5: Final Entry Point ---
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,55 @@
+#!/bin/bash
+# This file is running before loading the system shell.
+# You can put anything here.
+
+# The VIRTUAL_ENV variable give you the PSHMode path.
+# You can use it to run files in etc folder.
+config_file="${parent_dir}/sniper-config.json"
+# shortcuts
+alias c="clear"
+alias m="micro"
+alias n="nano"
+alias del="mv -t ~/.trash"
+alias mk="mkdir"
+alias l="ls -CF"
+alias la="ls -a"
+alias su="touch"
+alias vs="view-source"
+alias gc="git clone"
+alias p3i="pip3 install"
+alias p2i="pip2 install"
+alias pi="pip install"
+alias cdsd="cd /sdcard"
+alias cddo="cd /sdcard/Download"
+
+# colors
+if [[ $BASH_VERSION != "" ]]; then
+  LIGHT_RED="\[\033[1;40m\]"
+  BLUE="\[\033[0;34m\]"
+  LIGHT_BLUE="\[\033[1;34m\]"
+  END_COLOR="\[\033[0m\]"
+  END_BOLD=""
+  LIVE_PATH="\W"
+else
+  LIGHT_RED="%B%{%F{blue}%}"
+  RED="%B%{%F{red}%}"
+  BLUE="%B%{%F{cyan}%}"
+  LIGHT_BLUE="%{%F{blue}%}"
+  END_COLOR="%{%f%}"
+  END_BOLD="%{%b%}"
+  LIVE_PATH="%~"
+fi
+
+echo 
+PROMPT_USERNAME=$(jq -r '.user.prompt_text' $config_file)
+
+
+# PSHMode prompt
+USER_PROMPT="${BLUE}┌──${BLUE}(${END_BOLD}${LIGHT_RED}$PROMPT_USERNAME${BLUE})${END_BOLD}${BLUE}-${BLUE}[${END_BOLD}${END_COLOR}${LIVE_PATH}${BLUE}]${END_BOLD}"$'\n'"${BLUE}└─${LIGHT_RED}\$${END_BOLD}${END_COLOR} "
+ROOT_PROMPT="${LIGHT_RED}┌──${LIGHT_RED}(${END_BOLD}${RED}$PROMPT_USERNAME${LIGHT_RED})${END_BOLD}${LIGHT_RED}-${LIGHT_RED}[${END_BOLD}${END_COLOR}${LIVE_PATH}${LIGHT_RED}]${END_BOLD}"$'\n'"${LIGHT_RED}└─${RED}#${END_BOLD}${END_COLOR} "
+
+# ┌──(hack💀sniper)-[home]
+# └─$
+# PS1 = prompt()
+
+unset LIGHT_RED BLUE LIGHT_BLUE END_COLOR END_BOLD LIVE_PATH

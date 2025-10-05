@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# تحقق من وجود أمر لتنفيذه
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <command> [args...]"
+    exit 1
+fi
+
+# تخزين الأمر والوسائط
+command="$@"
+
+# الحصول على الطابع الزمني قبل تنفيذ الأمر
+start_time=$(date +%s)
+
+# تنفيذ الأمر
+# echo "Executing: $command"
+$command
+
+# الحصول على الطابع الزمني بعد تنفيذ الأمر
+end_time=$(date +%s)
+
+# حساب الفرق بالثواني
+duration=$((end_time - start_time))
+
+# عرض الوقت المستغرق
+echo "Time taken: $duration seconds"

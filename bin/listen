@@ -1,0 +1,179 @@
+#!/usr/bin/python
+import socket
+import sys
+import argparse
+import http.server
+import socketserver
+
+# --- NEW: Rich dependency for help screen ---
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+    rich_available = True
+except ImportError:
+    rich_available = False
+
+# --- Color Definitions (Original) ---
+# Kept for the main application's colored output
+class Colors:
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m' # Added BOLD for consistency if needed
+
+# --- Core Functions (All original functions are unchanged) ---
+
+def start_tcp_listener(host, port, logfile, quiet):
+    """Starts a basic TCP listener and handles graceful shutdown."""
+    def print_info(message):
+        if not quiet: print(f"{Colors.BLUE}[INFO]{Colors.ENDC} {message}")
+    def print_success(message):
+        if not quiet: print(f"{Colors.GREEN}[SUCCESS]{Colors.ENDC} {message}")
+    def print_error(message):
+        print(f"{Colors.RED}[ERROR]{Colors.ENDC} {message}", file=sys.stderr)
+    def print_warn(message):
+        if not quiet: print(f"{Colors.YELLOW}[WARN]{Colors.ENDC} {message}")
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        s.bind((host, port))
+        s.listen()
+        print_info(f"Listening on {host}:{port}... (Press Ctrl+C to stop)")
+        conn, addr = s.accept()
+        with conn:
+            print_success(f"Connection established from {addr[0]}:{addr[1]}")
+            log_file_handle = None
+            if logfile:
+                try:
+                    log_file_handle = open(logfile, "a") 
+                    print_info(f"Logging session to '{logfile}'")
+                except IOError as e:
+                    print_error(f"Could not open log file: {e}")
+            while True:
+                data = conn.recv(1024)
+                if not data: break
+                decoded_data = data.decode('utf-8', errors='ignore')
+                sys.stdout.write(decoded_data)
+                sys.stdout.flush()
+                if log_file_handle:
+                    log_file_handle.write(decoded_data)
+                    log_file_handle.flush()
+    except KeyboardInterrupt:
+        print_warn("\nShutdown signal received. Closing listener.")
+    except Exception as e:
+        print_error(f"An unexpected error occurred: {e}")
+    finally:
+        print_info("Listener stopped.")
+        if 'log_file_handle' in locals() and log_file_handle and not log_file_handle.closed:
+            log_file_handle.close()
+        s.close()
+
+def start_http_server(host, port):
+    """Starts a simple HTTP server and handles graceful shutdown."""
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, format, *args): pass
+    with socketserver.TCPServer((host, port), Handler) as httpd:
+        print(f"{Colors.BLUE}[INFO]{Colors.ENDC} Serving HTTP on {host} port {port} (http://{host}:{port}/) ...")
+        print(f"{Colors.BLUE}[INFO]{Colors.ENDC} Press Ctrl+C to stop.")
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print(f"\n{Colors.YELLOW}[WARN]{Colors.ENDC} Shutdown signal received. Stopping server.")
+        finally:
+            httpd.server_close()
+            print(f"{Colors.BLUE}[INFO]{Colors.ENDC} Server stopped.")
+
+# --- NEW: Rich Help Screen Function ---
+def show_rich_help():
+    """Displays the custom, rich-formatted help screen for listen."""
+    if not rich_available:
+        print("Error: 'rich' library is required for the help screen. Run: pip install rich")
+        sys.exit(1)
+        
+    console = Console()
+    title = Text("SNIPER: listen - Network Listener", style="bold magenta", justify="center")
+    
+    usage = Text.from_markup(
+        "[bold]Usage:[/] [yellow]listen[/] [cyan]<PORT>[/] [green][OPTIONS][/]"
+    )
+    
+    main_panel_text = """
+[bold]Description:[/b]
+  A versatile network listener. It can act as a raw TCP listener to
+  capture incoming data or as a simple HTTP server to share files
+  from the current directory.
+
+[bold]Arguments:[/b]
+  [cyan]<PORT>[/]               The port number to listen on.
+
+[bold]Options:[/b]
+  [green]--serve[/]             Start a simple HTTP file server instead of a raw listener.
+  [green]--log <filename>[/]   Log all received data to a file (TCP mode only).
+  [green]-q, --quiet[/]        Suppress info messages, show only received data (TCP mode).
+  [green]-h, --help[/]         Show this help message and exit.
+"""
+
+    examples_text = """
+[bold]Examples:[/b]
+  [#] Start a simple TCP listener on port 4444
+  [yellow]listen[/] [cyan]4444[/]
+
+  [#] Listen and log the entire session to a file
+  [yellow]listen[/] [cyan]4444[/] [green]--log session.log[/]
+
+  [#] Start an HTTP server to share files from the current directory
+  [yellow]listen[/] [cyan]8000[/] [green]--serve[/]
+"""
+    
+    console.print(Panel(title, border_style="magenta", padding=(0, 1)))
+    console.print(usage, justify="center")
+    console.print(Panel(Text.from_markup(main_panel_text.strip()), title="Details", border_style="blue"))
+    console.print(Panel(Text.from_markup(examples_text.strip()), title="Examples", border_style="green"))
+    sys.exit(0)
+
+def main():
+    # --- MODIFIED: Argument Parser Setup ---
+    parser = argparse.ArgumentParser(
+        prog="listen",
+        description="A versatile network listener and simple file server.",
+        add_help=False # Disable default help
+    )
+    
+    # --- NEW: Manual help argument ---
+    parser.add_argument('-h', '--help', action='store_true', help='Show this help message and exit.')
+    
+    # --- MODIFIED: Positional argument is now optional ---
+    parser.add_argument(
+        "port", 
+        nargs='?', # Make it optional
+        default=None,
+        type=int, 
+        help="The port number to listen on."
+    )
+    # --- Original options (Unchanged) ---
+    parser.add_argument("--log", dest="logfile", metavar="<filename>", help="Log all received data to a file.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress informational messages.")
+    parser.add_argument("--serve", action="store_true", help="Start a simple HTTP file server.")
+    
+    args = parser.parse_args()
+    
+    # --- NEW: Help screen trigger ---
+    # Show help if -h is passed or if no port is provided
+    if args.help or args.port is None:
+        show_rich_help()
+
+    # --- Original execution logic (Unchanged) ---
+    HOST = '0.0.0.0'
+    PORT = args.port
+
+    if args.serve:
+        start_http_server(HOST, PORT)
+    else:
+        start_tcp_listener(HOST, PORT, args.logfile, args.quiet)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,163 @@
+#!/usr/bin/bash
+#!/bin/bash
+# This file must be used with "source bin/activate" *from bash*
+# you cannot run it directly
+
+
+script_path="$(realpath "$0")"
+parent_dir="$(dirname "$(dirname "$script_path")")"
+CONFIG_PATH="${parent_dir}/sniper-config.json"
+
+
+script_dir="$(dirname "$script_path")"
+
+export PROMPT_COMMAND=update_prompt
+
+alias ls='ls --color=auto --group-directories-first'
+
+function exit () {
+    # reset old environment variables
+    if [ -n "${_OLD_VIRTUAL_PATH:-}" ] ; then
+        PATH="${_OLD_VIRTUAL_PATH:-}"
+        export PATH
+        unset _OLD_VIRTUAL_PATH
+    fi
+    if [ -n "${_OLD_VIRTUAL_PYTHONHOME:-}" ] ; then
+        PYTHONHOME="${_OLD_VIRTUAL_PYTHONHOME:-}"
+        export PYTHONHOME
+        unset _OLD_VIRTUAL_PYTHONHOME
+    fi
+	zstyle -d ':completion:*' list-colors ${(s.:.)LS_COLORS}
+	zstyle -d ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+	zstyle -d ':completion:*' format '%B%d%b'
+	zstyle -d ':completion:*' group-name ''
+	zstyle -d ':completion:*' verbose yes
+	zstyle -d ':completion:*' file-sort 'directories-first'
+	zstyle -d ':completion:*' group-directories first
+
+  	unset ZSH_HIGHLIGHT_STYLES # الأمر الصحيح يكون أخضر
+    # Call hash to forget past commands. Without forgetting
+    # past commands the $PATH changes we made may not be respected
+    hash -r 2> /dev/null
+
+    if [ -n "${_OLD_VIRTUAL_PS1:-}" ] ; then
+        PS1="${_OLD_VIRTUAL_PS1:-}"
+        export PS1
+        unset _OLD_VIRTUAL_PS1
+    fi
+
+	ZSH_AUTOSUGGEST_STRATEGY=()
+	ZSH_HIGHLIGHT_MAXLENGTH=0
+	
+	source "$VIRTUAL_ENV/etc/onexit.sh" &>/dev/null	
+	
+    unset VIRTUAL_ENV
+    unset VIRTUAL_ENV_PROMPT
+    if [ ! "${1:-}" = "nondestructive" ] ; then
+    # Self destruct!
+        unset -f exit
+    fi
+}
+
+
+_OLD_ZSH_PLUGINS="$plugins"
+
+function auto-complete() {
+
+  # History configurations
+  #  "_OLD_VIRTUAL_PS1 $_OLD_VIRTUAL_PS1\n"
+  # "_OLD_VIRTUAL_PYTHONHOME $_OLD_VIRTUAL_PYTHONHOME\n"                                          
+  HISTFILE=~/.zsh_history
+  HISTSIZE=1000
+  SAVEHIST=2000                                                                                        setopt hist_expire_dups_first # delete duplicates first when HISTFILE size exceeds HISTSIZE
+  setopt hist_ignore_dups       # ignore duplicated commands history list
+  setopt hist_ignore_space      # ignore commands that start with space
+  setopt hist_verify            # show command with history expansion to user before running it
+  setopt share_history          # share command history data
+
+  # force zsh to show the complete history
+  # alias history="history 0"
+
+  unset ZSH_HIGHLIGHT_MAXLENGTH
+  source "$VIRTUAL_ENV/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+  source "$VIRTUAL_ENV/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+  source "$VIRTUAL_ENV/share/zsh-completions"
+  source "$VIRTUAL_ENV/share/zsh-git-prompt/zshrc.sh"
+  ZSH_AUTOSUGGEST_STRATEGY=(history)
+  #  "_OLD_VIRTUAL_PATH $_OLD_VIRTUAL_PATH\n"
+  # في ملف .zshrc
+  ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+  # -------------------------------------------
+  # في ملف .zshrc
+  export LS_COLORS='di=1;34:fi=0:ln=1;36:pi=1;33:so=1;35:bd=1;34;46:cd=1;34;43:or=1;31:mi=5;30;41:ex=1;32:*.tar=1;31:*.zip=1;31:'
+  # في ملف .zshrc
+  autoload -U colors && colors
+  zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
+  zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+  zstyle ':completion:*' format '%B%d%b'
+  zstyle ':completion:*' group-name ''
+  zstyle ':completion:*' verbose yes
+  zstyle ':completion:*' file-sort 'directories-first'
+  zstyle ':completion:*' group-directories first
+  # في ملف .zshrc
+  autoload -Uz compinit
+  compinit
+  autoload -Uz compinit && compinit
+  # -------------------------------------------
+  ZSH_HIGHLIGHT_STYLES[command]="fg=cyan"  # الأمر الصحيح يكون أخضر
+  # تخصيص لون الأوامر alias في zsh-syntax-highlighting
+  ZSH_HIGHLIGHT_STYLES[builtin]="fg=magenta,bold"
+  ZSH_HIGHLIGHT_STYLES[alias]="fg=cyan"
+  ZSH_HIGHLIGHT_STYLES[token]="fg=blue"
+  ZSH_HIGHLIGHT_STYLES[function]="fg=#792783"
+  ZSH_HIGHLIGHT_STYLES[unknown-token]="fg=red,bold"  # الأمر غير الصحيح يكون أحمر
+  # -------------------------------------------
+  # autoload -Uz vcs_info
+  # preexec() { vcs_info }
+  # precmd() { vcs_info }
+  # -------------------------------------------
+}
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
+# unset irrelevant variables
+exit nondestructive
+
+VIRTUAL_ENV="$(dirname "$script_dir")"
+export VIRTUAL_ENV
+_OLD_VIRTUAL_PATH="$PATH"
+
+if [ -d $VIRTUAL_ENV/tools ]; then
+  for bin_folder in $(find $VIRTUAL_ENV/tools/ -name "bin"); do
+    if [[ -d "$bin_folder" ]]; then
+      PATH="$bin_folder:$PATH"
+    fi
+  done
+fi
+
+PATH="$VIRTUAL_ENV/bin:$PATH"
+export PATH
+
+# unset PYTHONHOME if set
+# this will fail if PYTHONHOME is set to the empty string (which is bad anyway)
+# could use `if (set -u; : $PYTHONHOME) ;` in bash
+if [ -n "${PYTHONHOME:-}" ] ; then
+    _OLD_VIRTUAL_PYTHONHOME="${PYTHONHOME:-}"
+    unset PYTHONHOME
+fi
+
+if [ -z "${VIRTUAL_ENV_DISABLE_PROMPT:-}" ] ; then
+    _OLD_VIRTUAL_PS1="${PS1:-}"
+	source "$VIRTUAL_ENV/etc/bashrc"
+	permissions=$(jq -r '.user.permissions' $CONFIG_PATH)
+	if [[ $permissions == "root" ]]; then
+		PROMPT=$ROOT_PROMPT
+	else
+		PROMPT=$USER_PROMPT
+	fi
+    VIRTUAL_ENV_PROMPT="(py-env) "
+    export VIRTUAL_ENV_PROMPT
+fi
+
+# Call hash to forget past commands. Without forgetting
+# past commands the $PATH changes we made may not be respected
+hash -r 2> /dev/null
+auto-complete

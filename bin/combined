@@ -1,0 +1,354 @@
+#!/usr/bin/python
+import os
+import sys
+import json
+import re
+import argparse
+from pathlib import Path
+
+# --- Helper function for colored output (Original) ---
+# This will be used as a fallback if Rich is not installed.
+class TermColors:
+    if sys.stdout.isatty():
+        GREEN = '\033[92m'
+        RED = '\033[91m'
+        YELLOW = '\033[93m'
+        BLUE = '\033[94m'
+        BOLD = '\033[1m'
+        ENDC = '\033[0m'
+    else:
+        GREEN = RED = YELLOW = BLUE = BOLD = ENDC = ""
+
+def print_color(text, color):
+    """Prints text in a specified color."""
+    print(f"{color}{text}{TermColors.ENDC}")
+
+# --- Optional Dependency Handling (with Rich added) ---
+try:
+    from tqdm import tqdm
+except ImportError:
+    print_color("Warning: 'tqdm' is not installed. Progress bar will be disabled. Run: pip install tqdm", TermColors.YELLOW)
+    tqdm = lambda x, **kwargs: x
+
+try:
+    import tiktoken
+except ImportError:
+    print_color("Warning: 'tiktoken' is not installed. Token counting will fall back to word count. Run: pip install tiktoken", TermColors.YELLOW)
+    tiktoken = None
+
+try:
+    import pyperclip
+except ImportError:
+    pyperclip = None
+
+# --- NEW: Rich dependency for help screen ---
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+    rich_available = True
+except ImportError:
+    rich_available = False
+
+# --- Configuration & Constants (Unchanged) ---
+DEFAULT_EXCLUDED_DIRS = {'.git', '__pycache__','debuger','include', '.vscode', 'node_modules', 'include','debuger', 'dist', 'build'}
+DEFAULT_INCLUDED_EXTENSIONS = {
+    '.py', '.js', '.html', '.css', '.json', '.md', '.txt', '.java', '.c',
+    '.cpp', '.h', '.go', '.rs', '.php', '.rb', '.sh', '.toml', '.yaml',
+    '.yml', '.xml', '.ts', '.tsx', '.jsx', '.vue', '.sql'
+}
+LANGUAGE_MAP = {
+    '.py': 'Python', '.js': 'JavaScript', '.ts': 'TypeScript', '.jsx': 'JavaScript (JSX)',
+    '.tsx': 'TypeScript (TSX)', '.html': 'HTML', '.css': 'CSS', '.json': 'JSON', '.md': 'Markdown',
+    '.txt': 'Text', '.java': 'Java', '.c': 'C', '.cpp': 'C++', '.h': 'C/C++ Header',
+    '.go': 'Go', '.rs': 'Rust', '.php': 'PHP', '.rb': 'Ruby', '.sh': 'Shell Script',
+    '.toml': 'TOML', '.yaml': 'YAML', '.yml': 'YAML', '.xml': 'XML', '.vue': 'Vue', '.sql': 'SQL'
+}
+API_COSTS_PER_MILLION_TOKENS = {
+    "OpenAI GPT-4o": 0.13,
+    "Anthropic Claude 3 Sonnet": 0.08,
+    "Google Gemini 1.5 Pro": 0.09,
+}
+
+# --- Core Functions (All original functions are unchanged) ---
+
+def get_language_from_extension(filename):
+    """Detects the programming language based on the file extension."""
+    ext = Path(filename).suffix.lower()
+    return LANGUAGE_MAP.get(ext, 'Text')
+
+def parse_gitignore(root_dir):
+    """Parses the .gitignore file and returns a set of patterns."""
+    gitignore_path = Path(root_dir) / '.gitignore'
+    patterns = set()
+    if gitignore_path.is_file():
+        with open(gitignore_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    patterns.add(line)
+    return patterns
+
+def is_excluded(path, root_dir, args, gitignore_patterns):
+    """Checks if a file or directory should be excluded based on all rules."""
+    relative_path = path.relative_to(root_dir)
+    if any(relative_path.match(pattern.strip('/')) for pattern in gitignore_patterns):
+        return True
+    if any(part in args.exclude_dir for part in relative_path.parts):
+        return True
+    if any(relative_path.name.startswith(p) for p in args.exclude_prefix) or any(part.startswith(p) for part in relative_path.parts for p in args.exclude_prefix):
+        return True
+    if relative_path.name in args.exclude_file:
+        return True
+    return False
+
+def remove_comments(content, language):
+    """Removes comments from code based on the language."""
+    if language in ['Python', 'Shell Script', 'Ruby', 'YAML', 'TOML']:
+        content = re.sub(r'#.*', '', content)
+    elif language in ['JavaScript', 'TypeScript', 'Java', 'C', 'C++', 'Go', 'Rust', 'CSS', 'C/C++ Header']:
+        content = re.sub(r'//.*', '', content)
+        content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+    elif language == 'HTML':
+        content = re.sub(r'', '', content, flags=re.DOTALL)
+    return content
+
+def generate_summary(root_dir, files_to_process):
+    """Generates a project summary including directory structure and languages."""
+    summary = ["# Project Summary\n"]
+    summary.append("## Directory Structure")
+    tree = {}
+    for p in files_to_process:
+        path = Path(p).relative_to(root_dir)
+        parts = path.parts
+        current_level = tree
+        for part in parts:
+            if part not in current_level:
+                current_level[part] = {}
+            current_level = current_level[part]
+    def build_tree_str(d, indent=''):
+        s = ''
+        for i, (key, value) in enumerate(d.items()):
+            connector = '└── ' if i == len(d) - 1 else '├── '
+            s += f'{indent}{connector}{key}\n'
+            if value:
+                new_indent = indent + ('    ' if i == len(d) - 1 else '│   ')
+                s += build_tree_str(value, new_indent)
+        return s
+    summary.append(f"```\n{root_dir.name}/\n{build_tree_str(tree)}```\n")
+    summary.append("## Languages Detected")
+    lang_count = {}
+    for f in files_to_process:
+        lang = get_language_from_extension(f)
+        lang_count[lang] = lang_count.get(lang, 0) + 1
+    for lang, count in sorted(lang_count.items()):
+        summary.append(f"- {lang}: {count} file(s)")
+    summary.append("\n---\n")
+    return "\n".join(summary)
+
+def estimate_cost(num_tokens):
+    """Estimates the API cost and returns a formatted string."""
+    lines = [f"\n📊 Total Token Count: {num_tokens}", "--- API Cost Estimation (Input) ---"]
+    for api, cost_per_million in API_COSTS_PER_MILLION_TOKENS.items():
+        cost = (num_tokens / 1_000_000) * cost_per_million
+        lines.append(f"- {api:<25}: ~${cost:.2f}")
+    return "\n".join(lines)
+
+def process_directory(args):
+    """Main function to combine files, process them, and generate output."""
+    source_dir = Path(args.source_dir)
+    if not source_dir.is_dir():
+        print_color(f"Error: Directory '{source_dir}' not found.", TermColors.RED)
+        sys.exit(1)
+    args.exclude_dir.update(DEFAULT_EXCLUDED_DIRS)
+    gitignore_patterns = parse_gitignore(source_dir) if not args.no_gitignore else set()
+    print_color("\n--- Step 1: Finding files to process ---", TermColors.BLUE)
+    files_to_process = []
+    for path in source_dir.rglob('*'):
+        if path.is_file():
+            if (path.suffix.lower() in args.include_ext and not is_excluded(path, source_dir, args, gitignore_patterns)):
+                files_to_process.append(str(path))
+    if not files_to_process:
+        print_color("No text files found to process with the given criteria.", TermColors.YELLOW)
+        return
+    print(f"Found {len(files_to_process)} files to combine.")
+    print_color("\n--- Step 2: Combining and processing files ---", TermColors.BLUE)
+    all_content = []
+    if args.summary:
+        all_content.append(generate_summary(source_dir, files_to_process))
+    for filepath_str in tqdm(files_to_process, desc="⏳ Processing files", unit="file"):
+        filepath = Path(filepath_str)
+        relative_path = filepath.relative_to(source_dir)
+        language = get_language_from_extension(filepath.name)
+        try:
+            with open(filepath, 'r', encoding='utf-8', errors='ignore') as infile:
+                content = infile.read()
+            if args.no_comments:
+                content = remove_comments(content, language)
+            if args.no_empty_lines:
+                content = "\n".join([line for line in content.splitlines() if line.strip()])
+            if args.format == 'markdown':
+                header = f"\n\n## File: `{relative_path}` | Language: {language}\n\n"
+                formatted_content = f"```{language.lower().split(' ')[0]}\n{content}\n```"
+            else:
+                header = f"\n\n--- File: {relative_path} | Language: {language} ---\n\n"
+                formatted_content = content
+            all_content.append(header + formatted_content)
+        except Exception as e:
+            error_msg = f"   [Warning] Could not read file: {relative_path}. Reason: {e}"
+            tqdm.write(print_color(error_msg, TermColors.YELLOW))
+    final_content = "".join(all_content)
+    try:
+        with open(args.output, 'w', encoding='utf-8') as outfile:
+            outfile.write(final_content)
+    except IOError as e:
+        print_color(f"Error: Could not write to output file '{args.output}'. Reason: {e}", TermColors.RED)
+        return
+    print_color("\n--- Step 4: Calculating Tokens ---", TermColors.BLUE)
+    num_tokens = 0
+    if tiktoken:
+        try:
+            encoding = tiktoken.get_encoding("cl100k_base")
+            num_tokens = len(encoding.encode(final_content))
+            print(f"Tokenizer model: cl100k_base")
+        except Exception as e:
+            print_color(f"Could not calculate tokens using 'tiktoken': {e}. Falling back to word count.", TermColors.YELLOW)
+            num_tokens = len(final_content.split())
+    else:
+        num_tokens = len(final_content.split())
+        print("Falling back to word count as a rough token estimate.")
+    if args.cost:
+        cost_report = estimate_cost(num_tokens)
+        print_color(cost_report, TermColors.GREEN)
+    if args.copy:
+        if pyperclip:
+            pyperclip.copy(final_content)
+            print_color("\n✅ Content copied to clipboard!", TermColors.GREEN)
+        else:
+            print_color("\nWarning: 'pyperclip' is not installed. Cannot copy to clipboard. Run: pip install pyperclip", TermColors.YELLOW)
+    success_message = (
+        f"\n--- ✅ Process Completed Successfully! ---\n"
+        f"{len(files_to_process)} files were combined into '{args.output}'\n"
+        f"📊 Total Token Count (approximate): {num_tokens}"
+    )
+    print_color(success_message, TermColors.GREEN)
+
+# --- NEW: Rich Help Screen Function ---
+def show_rich_help():
+    """Displays the custom, rich-formatted help screen."""
+    if not rich_available:
+        print_color("Error: 'rich' library is required for the help screen. Run: pip install rich", TermColors.RED)
+        sys.exit(1)
+        
+    console = Console()
+    title = Text("SNIPER: AI Context Combiner", style="bold magenta", justify="center")
+    
+    usage = Text.from_markup(
+        "[bold]Usage:[/] [yellow]python combined.py[/] [cyan]<SOURCE_DIR>[/] [green][OPTIONS][/]"
+    )
+    
+    main_panel_text = """
+[bold]Description:[/b]
+  A powerful tool to combine multiple source code files into a single
+  text or markdown file, optimized for providing context to LLMs.
+
+[bold]Arguments:[/b]
+  [cyan]<SOURCE_DIR>[/]       Path to the source directory (default: current directory).
+"""
+    
+    options_panel_text = """
+[bold]Output & Formatting:[/b]
+  [green]-o, --output[/]       Name of the output file (default: combined_output.txt).
+  [green]--format[/]          Output format: 'text' or 'markdown' (default: text).
+  [green]--summary[/]         Add a project summary (structure, languages) to the top.
+
+[bold]Filtering:[/b]
+  [green]--include-ext[/]     File extensions to include (space-separated).
+  [green]--exclude-dir[/]     Directories to exclude (e.g., logs .cache).
+  [green]--exclude-file[/]    Specific files to exclude by name.
+  [green]--exclude-prefix[/]  Exclude files/dirs starting with a prefix (e.g., .old_).
+  [green]--no-gitignore[/]    Do not use .gitignore to exclude files.
+
+[bold]Content Processing:[/b]
+  [green]--no-comments[/]     Remove comments from source code.
+  [green]--no-empty-lines[/]  Remove empty lines from all files.
+
+[bold]Advanced Features:[/b]
+  [green]--cost[/]            Estimate API cost based on token count.
+  [green]--copy[/]            Copy the final output to the clipboard.
+  [green]-h, --help[/]         Show this help message.
+"""
+
+    examples_text = """
+[bold]Examples:[/b]
+  [#] Combine a project into a markdown file with summary, cost, and copy to clipboard
+  [yellow]python combined.py . -o project.md --format markdown --summary --cost --copy[/]
+
+  [#] Combine only python and javascript files, excluding a 'tests' directory
+  [yellow]python combined.py . --include-ext .py .js --exclude-dir tests[/]
+"""
+    
+    console.print(Panel(title, border_style="magenta", padding=(0, 1)))
+    console.print(usage, justify="center")
+    console.print(Panel(Text.from_markup(main_panel_text.strip()), title="Overview", border_style="blue"))
+    console.print(Panel(Text.from_markup(options_panel_text.strip()), title="Options", border_style="green"))
+    console.print(Panel(Text.from_markup(examples_text.strip()), title="Examples", border_style="cyan"))
+    sys.exit(0)
+
+def main():
+    # --- Argument Parser Setup ---
+    # The original formatter is kept as a fallback if Rich is not available
+    # or if the user prefers it. We will disable the default help.
+    class CustomHelpFormatter(argparse.RawTextHelpFormatter):
+        def _format_action_invocation(self, action):
+            if not action.option_strings:
+                return super()._format_action_invocation(action)
+            return f"{TermColors.YELLOW}{', '.join(action.option_strings)}{TermColors.ENDC}"
+
+    parser = argparse.ArgumentParser(
+        description=f"{TermColors.BOLD}{TermColors.BLUE}File Combiner & Token Counter for AI Context Generation{TermColors.ENDC}",
+        epilog="Example: python combined.py . -o project.md --format markdown --summary --cost --copy",
+        formatter_class=CustomHelpFormatter,
+        add_help=False # MODIFIED: Disable default help
+    )
+    
+    # --- NEW: Manual help argument ---
+    parser.add_argument('-h', '--help', action='store_true', help='Show this help message and exit.')
+
+    # --- Positional Arguments (Unchanged) ---
+    parser.add_argument('source_dir', nargs='?', default='.', help='The path to the source directory to process (default: current directory).')
+    
+    # --- Grouped Arguments (Unchanged) ---
+    output_group = parser.add_argument_group(f'{TermColors.BOLD}Output and Formatting{TermColors.ENDC}')
+    output_group.add_argument('-o', '--output', default='combined_output.txt', help='Name of the output file (default: combined_output.txt).')
+    output_group.add_argument('--format', choices=['text', 'markdown'], default='text', help='Output format (default: text).')
+    output_group.add_argument('--summary', action='store_true', help='Add a project summary (structure, languages) to the output.')
+    filter_group = parser.add_argument_group(f'{TermColors.BOLD}Inclusion & Exclusion Filters{TermColors.ENDC}')
+    filter_group.add_argument('--include-ext', nargs='+', default=DEFAULT_INCLUDED_EXTENSIONS, help=f'File extensions to include (default: {", ".join(list(DEFAULT_INCLUDED_EXTENSIONS)[:5])}...).')
+    filter_group.add_argument('--exclude-dir', nargs='+', default=set(), help='Directories to exclude (e.g., logs .cache).')
+    filter_group.add_argument('--exclude-prefix', nargs='+', default=set(), help='Exclude files and directories starting with a prefix (e.g., .old_).')
+    filter_group.add_argument('--exclude-file', nargs='+', default=set(), help='Specific files to exclude by name.')
+    filter_group.add_argument('--no-gitignore', action='store_true', help='Do not use .gitignore to exclude files.')
+    processing_group = parser.add_argument_group(f'{TermColors.BOLD}Content Processing & Advanced Features{TermColors.ENDC}')
+    processing_group.add_argument('--no-comments', action='store_true', help='Remove comments from source code files.')
+    processing_group.add_argument('--no-empty-lines', action='store_true', help='Remove empty lines from all files.')
+    processing_group.add_argument('--cost', action='store_true', help='Estimate API cost based on token count.')
+    processing_group.add_argument('--copy', action='store_true', help='Copy the final output to the clipboard.')
+
+    args = parser.parse_args()
+    
+    # --- NEW: Help screen trigger ---
+    # If the user passes -h or --help, show the rich help screen.
+    if args.help:
+        show_rich_help()
+
+    # --- Original argument processing logic (Unchanged) ---
+    args.exclude_dir = set(args.exclude_dir)
+    args.exclude_file = set(args.exclude_file)
+    args.include_ext = set(args.include_ext)
+    args.exclude_prefix = set(args.exclude_prefix)
+    
+    process_directory(args)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,17 @@
+{
+	"user":	{
+		"prompt_text":	"SNIPER💀CODER",
+		"permissions":	"user",
+		"theme":	"dark",
+		"shell":	"zsh",
+		"aliases":	{
+			"ll":	"ls -la",
+			"gs":	"git status"
+		}
+	},
+	"environment":	{
+		"python_version":	"3.11",
+		"virtual_env_name":	"sniper-env",
+		"tools_enabled":	true
+	}
+}
