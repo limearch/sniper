@@ -196,4 +196,4 @@ We welcome all contributions to make SNIPER even better! If you wish to contribu
 
 ### 📄 License
 
-This project is licensed under the **MIT License**. See the `LICENSE` file for more details.
+This project is licensed under the **Apache License 2.0**. See the `LICENSE` file for more details.
