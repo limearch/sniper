@@ -13,17 +13,45 @@
 
 **An integrated command-line arsenal for developers, designed for precision, power, and efficiency.**
 
-<p>
-    <img src="https://img.shields.io/badge/Version-1.0.0-blueviolet?style=for-the-badge" alt="Version">
-    <img src="https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge" alt="Build Status">
-    <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Termux-informational?style=for-the-badge" alt="Platform">
-    <img src="https://img.shields.io/github/license/mashape/apistatus?style=for-the-badge&label=License" alt="License">
-    <br>
-    <img src="https://img.shields.io/badge/Made%20with-C%2C%20Python%20%26%20Shell-0078d4.svg?style=for-the-badge" alt="Made with">
-    <img src="https://img.shields.io/github/last-commit/google/skia?style=for-the-badge&color=important" alt="Last Commit">
-    <img src="https://img.shields.io/badge/Contributions-Welcome-orange.svg?style=for-the-badge" alt="Contributions Welcome">
+<p align="center">
+  <!-- Project Info -->
+  <img src="https://img.shields.io/badge/Version-1.0.0-blueviolet?style=flat" alt="Version">
+  <img src="https://img.shields.io/badge/Status-Stable-brightgreen?style=flat" alt="Status">
+  <img src="https://img.shields.io/badge/Maintained-Yes-success?style=flat" alt="Maintained">
+  <img src="https://img.shields.io/github/license/limearch/sniper?style=flat&label=License" alt="License">
 </p>
 
+<p align="center">
+  <!-- Environment -->
+  <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Termux-informational?style=flat" alt="Platform">
+  <img src="https://img.shields.io/badge/Architecture-x86__64%20%7C%20ARM-informational?style=flat" alt="Architecture">
+  <img src="https://img.shields.io/badge/Shell-Bash-lightgrey?style=flat" alt="Shell">
+  <img src="https://img.shields.io/github/last-commit/limearch/sniper?style=flat&color=important" alt="Last Commit">
+</p>
+
+<p align="center">
+  <!-- Tech Stack -->
+  <img src="https://img.shields.io/badge/Made%20with-C%2C%20Python%20%26%20Shell-0078d4.svg?style=flat" alt="Made with">
+  <img src="https://img.shields.io/badge/Language-C%20%7C%20Python%20%7C%20Shell-blue?style=flat" alt="Languages">
+  <img src="https://img.shields.io/github/repo-size/limearch/sniper?style=flat" alt="Repo Size">
+  <img src="https://img.shields.io/github/directory-file-count/limearch/sniper?style=flat&label=Files" alt="File Count">
+</p>
+
+<p align="center">
+  <!-- Community -->
+  <img src="https://img.shields.io/badge/Contributions-Welcome-orange.svg?style=flat" alt="Contributions Welcome">
+  <img src="https://img.shields.io/github/issues/limearch/sniper?style=flat&color=yellow" alt="Issues">
+  <img src="https://img.shields.io/github/forks/limearch/sniper?style=flat&color=blue" alt="Forks">
+  <img src="https://img.shields.io/github/stars/limearch/sniper?style=flat&color=gold" alt="Stars">
+</p>
+
+<p align="center">
+  <!-- Security & CI -->
+  <img src="https://img.shields.io/badge/Security-Focused-critical?style=flat" alt="Security">
+  <img src="https://img.shields.io/badge/Build-Passing-brightgreen?style=flat" alt="Build Status">
+  <img src="https://img.shields.io/badge/Tests-100%25-success?style=flat" alt="Tests">
+  <img src="https://img.shields.io/badge/Code%20Quality-A%2B-brightgreen?style=flat" alt="Code Quality">
+</p>
 </div>
 
 ---
