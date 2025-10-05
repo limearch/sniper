@@ -118,22 +118,17 @@ Ensure you have these essential tools: `git`, `python`, and `pip`.
 
 1.  **Clone the Repository:**
     ```bash
-    git clone <URL_OF_YOUR_REPOSITORY> sniper
+    git clone https://github.com/limearch/sniper.git sniper
     cd sniper
     ```
 
-2.  **Install All Dependencies:**
-    Our smart script (`setup.py`) will automatically detect your system and install everything you need.
+2.  **Install All Dependencies And Build:**
+    Our smart script (`install.sh`) will automatically detect your system and install everything you need.
     ```bash
-    python setup.py
+    bash install.sh
     ```
     > **Note:** This will install system packages (like `clang`, `make`, `rustc`) and Python libraries (like `rich`, `cryptography`).
 
-3.  **Build the Project:**
-    The final step is to compile the C tools and set executable permissions for all tools.
-    ```bash
-    ./build.sh
-    ```
     > **Note:** This will create the executable files in the respective `bin` directories of each tool.
 
 **✅ Installation complete! The SNIPER arsenal is now ready for use.**
@@ -146,21 +141,21 @@ Ensure you have these essential tools: `git`, `python`, and `pip`.
 
 | Tool | Command | Description | Example Usage |
 | :--- | :--- | :--- | :--- |
-| **Universal Runner** | `tools/run/bin/run` | An intelligent code runner. It detects the language, compiles if necessary, and executes the code with performance timing. | `./tools/run/bin/run --time my_program.c` |
-| **Fast Find** | `tools/fastfind/bin/fastfind` | A blazing-fast, multi-threaded file search utility with Regex support and advanced filters. | `./tools/fastfind/bin/fastfind -p '\.py$' --size +10K` |
-| **Compress Tool** | `tools/compress/bin/compress` | A powerful tool to compress directories into `zip` or `tar` (gz, bz2, xz) archives. | `./tools/compress/bin/compress -d ./src -o archive.zip -v` |
-| **Config Manager** | `tools/config/bin/configer` | Manage the central `sniper-config.json` file directly from the command line. | `./tools/config/bin/configer set user theme dark` |
-| **Size Reporter** | `tools/size/bin/size` | A simple and fast utility to calculate and display the size of files and directories in a human-readable format. | `./tools/size/bin/size ./large_directory` |
+| **Universal Runner** | `run` | An intelligent code runner. It detects the language, compiles if necessary, and executes the code with performance timing. | `run --time my_program.c` |
+| **Fast Find** | `fastfind` | A blazing-fast, multi-threaded file search utility with Regex support and advanced filters. | `fastfind -p '\.py$' --size +10K` |
+| **Compress Tool** | `compress` | A powerful tool to compress directories into `zip` or `tar` (gz, bz2, xz) archives. | `compress -d ./src -o archive.zip -v` |
+| **Config Manager** | `configer` | Manage the central `sniper-config.json` file directly from the command line. | `configer set user theme dark` |
+| **Size Reporter** | `size` | A simple and fast utility to calculate and display the size of files and directories in a human-readable format. | `size ./large_directory` |
 
 #### Scripting Tools
 
 | Tool | Command | Description | Example Usage |
 | :--- | :--- | :--- | :--- |
-| **Social Dive** | `bin/social-dive` | An OSINT tool to check for the existence of usernames across dozens of websites concurrently. | `./bin/social-dive johndoe --category Gaming` |
-| **Code Formatter** | `bin/format` | An automatic code formatter supporting Python, JSON, Shell, and C/C++. Ideal for standardizing code style. | `./bin/format ./my_project -f .py .c --check` |
-| **File Info** | `bin/file-info` | Displays a comprehensive report on any file or directory, including size, permissions, dates, and hashes. | `./bin/file-info /path/to/my/file.zip` |
-| **Project Initializer**| `bin/sniper-init` | An interactive tool to create new project structures (Python, Node.js) with a few clicks. | `./bin/sniper-init` |
-| **Sniper Crypt** | `bin/sniper-crypt` | A utility for securely encrypting and decrypting files using the AES-256 algorithm. | `./bin/sniper-crypt encrypt secret-data.txt` |
+| **Social Dive** | `social-dive` | An OSINT tool to check for the existence of usernames across dozens of websites concurrently. | `social-dive johndoe --category Gaming` |
+| **Code Formatter** | `format` | An automatic code formatter supporting Python, JSON, Shell, and C/C++. Ideal for standardizing code style. | `format ./my_project -f .py .c --check` |
+| **File Info** | `file-info` | Displays a comprehensive report on any file or directory, including size, permissions, dates, and hashes. | `file-info /path/to/my/file.zip` |
+| **Project Initializer**| `sniper-init` | An interactive tool to create new project structures (Python, Node.js) with a few clicks. | `sniper-init` |
+| **Sniper Crypt** | `sniper-crypt` | A utility for securely encrypting and decrypting files using the AES-256 algorithm. | `sniper-crypt encrypt secret-data.txt` |
 
 ---
 
@@ -199,12 +194,12 @@ The behavior of the SNIPER environment is controlled by the `sniper-config.json`
 
 **Example: Change the user's default shell**
 ```bash
-./tools/config/bin/configer set user shell zsh
+configer set user shell zsh
 ```
 
 **Example: Read the configured Python version**
 ```bash
-./tools/config/bin/configer get environment python_version
+configer get environment python_version
 ```
 
 ---
