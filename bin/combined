@@ -244,7 +244,7 @@ def show_rich_help():
     title = Text("SNIPER: AI Context Combiner", style="bold magenta", justify="center")
     
     usage = Text.from_markup(
-        "[bold]Usage:[/] [yellow]combined[/] [cyan]<SOURCE_DIR>[/] [green][OPTIONS][/]"
+        "[bold]Usage:[/] [yellow]python combined.py[/] [cyan]<SOURCE_DIR>[/] [green][OPTIONS][/]"
     )
     
     main_panel_text = """
@@ -282,10 +282,10 @@ def show_rich_help():
     examples_text = """
 [bold]Examples:[/b]
   [#] Combine a project into a markdown file with summary, cost, and copy to clipboard
-  [yellow]combined . -o project.md --format markdown --summary --cost --copy[/]
+  [yellow]python combined.py . -o project.md --format markdown --summary --cost --copy[/]
 
   [#] Combine only python and javascript files, excluding a 'tests' directory
-  [yellow]combined . --include-ext .py .js --exclude-dir tests[/]
+  [yellow]python combined.py . --include-ext .py .js --exclude-dir tests[/]
 """
     
     console.print(Panel(title, border_style="magenta", padding=(0, 1)))

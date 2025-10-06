@@ -19,13 +19,16 @@
             "packages": [
                 "clang",
                 "make",
+                "libzip",
                 "git",
                 "zsh",
                 "tar",
                 "unzip",
                 "shfmt",
                 "clang-format",
-                "build-essential"
+                "build-essential",
+                "libffi",
+                "rust"
             ]
         },
         "debian": {
