@@ -65,6 +65,7 @@ run_setup() {
     print_success "All dependencies are installed."
 }
 
+# *** MODIFIED FUNCTION TO ENSURE 'bin/' DIRECTORIES EXIST ***
 run_build() {
     print_stage "Building Project Tools"
     local build_script="setup/build"
@@ -72,6 +73,28 @@ run_build() {
         print_error "$build_script not found. Cannot compile tools."
         exit 1
     fi
+
+    # --- START: New logic to ensure 'bin/' directories exist ---
+    print_info "Ensuring output 'bin/' directories exist for all tools..."
+    local tools_dir="tools" # Assuming tools are in a 'tools/' directory.
+    if [ -d "$tools_dir" ]; then
+        # Loop through each subdirectory in the tools folder
+        for tool_path in "$tools_dir"/*; do
+            if [ -d "$tool_path" ]; then
+                local bin_dir="$tool_path/bin"
+                # If the bin directory does not exist, create it.
+                if [ ! -d "$bin_dir" ]; then
+                    print_info "Creating missing directory: $bin_dir"
+                    mkdir -p "$bin_dir"
+                fi
+            fi
+        done
+        print_success "All tool 'bin/' directories are confirmed to exist."
+    else
+        # If the main 'tools' directory doesn't exist, just inform the user.
+        print_info "Main tools directory '$tools_dir' not found, skipping 'bin/' directory creation."
+    fi
+    # --- END: New logic ---
 
     chmod +x "$build_script"
     echo -e "${C_GREY}▼▼▼ Running build output ▼▼▼${C_RESET}"
@@ -110,7 +133,6 @@ change_shell_to_zsh() {
     fi
 }
 
-# *** MODIFIED FUNCTION TO ENSURE IT ALWAYS UPDATES .zshrc ***
 install_sniper_function() {
     print_stage "Integrating 'sniper' Command"
     local zshrc_file="$HOME/.zshrc"
@@ -123,8 +145,6 @@ install_sniper_function() {
     # Check if the function already exists. If so, remove the old block first.
     if grep -q "# SNIPER_TOOLKIT_FUNCTION" "$zshrc_file" 2>/dev/null; then
         print_info "Found an existing 'sniper' function. Removing it before adding the new version..."
-        # Use sed to delete the entire block from the start marker to the end marker.
-        # This creates a backup (.zshrc.bak) for safety.
         sed -i.bak '/# SNIPER_TOOLKIT_FUNCTION/,/# END_SNIPER_TOOLKIT_FUNCTION/d' "$zshrc_file"
         print_success "Old function block removed. A backup was created at ${zshrc_file}.bak"
     fi
