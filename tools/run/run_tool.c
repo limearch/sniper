@@ -9,53 +9,41 @@
 #include <string.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <libgen.h> // Required for dirname()
 #include <signal.h>
 
-static void show_rich_help(const char* prog_name) {
-    int width = get_terminal_width();
-
-    char title_buffer[256];
-    snprintf(title_buffer, sizeof(title_buffer), "%sSNIPER: run - Universal Code Runner%s", C_BOLD, C_RESET);
-    print_panel_top("", C_MAGENTA, width);
-    print_panel_line(title_buffer, C_MAGENTA, width);
-    print_panel_separator(C_MAGENTA, width);
-    print_panel_line("A powerful tool to compile, run, and manage code for various languages.", C_MAGENTA, width);
-    print_panel_bottom(C_MAGENTA, width);
-
-    char usage_buffer[256];
-    snprintf(usage_buffer, sizeof(usage_buffer), "  %sUsage:%s %s%s%s %s<file>%s %s[args...]%s",
-           C_BOLD, C_RESET, C_YELLOW, prog_name, C_RESET, C_CYAN, C_RESET, C_GREEN, C_RESET);
-    printf("\n%s\n\n", usage_buffer);
-    
-    print_panel_top("Options", C_BLUE, width);
-    print_panel_line("  -t, --time           Measure execution time and memory usage.", C_BLUE, width);
-    print_panel_line("  -v, --verbose        Enable verbose output for compilation/execution.", C_BLUE, width);
-    print_panel_line("  -w, --watch          Watch the file for changes and re-run automatically.", C_BLUE, width);
-    print_panel_line("  -j, --parallel       Run multiple files in parallel.", C_BLUE, width);
-    print_panel_line("  -i, --interactive    Run in interactive shell mode.", C_BLUE, width);
-    print_panel_line("      --limit-time N   Set CPU time limit of N seconds.", C_BLUE, width);
-    print_panel_line("      --limit-mem N    Set memory limit of N kilobytes.", C_BLUE, width);
-    print_panel_line("      --no-color       Disable all colored output.", C_BLUE, width);
-    print_panel_line("  -h, --help           Display this help message.", C_BLUE, width);
-    print_panel_bottom(C_BLUE, width);
-
-    print_panel_top("Examples", C_GREEN, width);
-    print_panel_line("  # Run a Python script with arguments", C_GREEN, width);
-    print_panel_line("  run my_script.py arg1 \"hello world\"", C_GREEN, width);
-    print_panel_line(" ", C_GREEN, width);
-    print_panel_line("  # Compile and run a C program with performance report", C_GREEN, width);
-    print_panel_line("  run --time --limit-mem 16384 my_program.c", C_GREEN, width);
-    print_panel_line(" ", C_GREEN, width);
-    print_panel_line("  # Automatically re-run a server on file changes", C_GREEN, width);
-    print_panel_line("  run --watch server.js", C_GREEN, width);
-    print_panel_bottom(C_GREEN, width);
-    
-    print_panel_top("Dependencies", C_YELLOW, width);
-    print_panel_line("  - For compiled languages, a compiler must be in your PATH.", C_YELLOW, width);
-    print_panel_line("    (e.g., 'gcc' for C, 'g++' for C++, 'rustc' for Rust, etc.)", C_YELLOW, width);
-    print_panel_line("  - For interpreted languages, an interpreter must be in your PATH.", C_YELLOW, width);
-    print_panel_line("    (e.g., 'python3', 'node', 'ruby', etc.)", C_YELLOW, width);
-    print_panel_bottom(C_YELLOW, width);
+// --- NEW Hybrid Help Function ---
+void show_rich_help(const char* prog_name) {
+    // Check if Python and Rich are available
+    if (system("python3 -c 'import rich' >/dev/null 2>&1") == 0) {
+        char command[1024];
+        char executable_path[1024];
+        char* dir_name;
+        
+        ssize_t len = readlink("/proc/self/exe", executable_path, sizeof(executable_path) - 1);
+        if (len != -1) {
+            executable_path[len] = '\0';
+            dir_name = dirname(executable_path);
+            snprintf(command, sizeof(command), "python3 %s/help_printer.py %s", dir_name, prog_name);
+            system(command);
+        } else {
+            // Fallback if readlink fails
+            snprintf(command, sizeof(command), "python3 help_printer.py %s", prog_name);
+            system(command);
+        }
+    } else {
+        // --- Simple Text Fallback Help ---
+        printf("%sUsage: %s [OPTIONS] <file> [file_args...]%s\n", C_BOLD, prog_name, C_RESET);
+        printf("A universal code runner for various programming languages.\n");
+        printf("%sNOTE:%s For a better help screen, please install Python3 and the 'rich' library (pip install rich).\n\n", C_YELLOW, C_RESET);
+        
+        printf("%sOPTIONS:%s\n", C_BOLD, C_RESET);
+        printf("  %s-h, --help%s           Display this help message and exit.\n", C_GREEN, C_RESET);
+        printf("  %s-t, --time%s           Measure and report execution time.\n", C_GREEN, C_RESET);
+        printf("  %s-w, --watch%s          Watch the file for changes and re-run.\n\n", C_GREEN, C_RESET);
+        printf("%sEXAMPLE:%s\n", C_BOLD, C_RESET);
+        printf("  run my_script.py arg1\n");
+    }
 }
 
 
@@ -65,6 +53,7 @@ char** build_compiler_argv(const LanguageRecipe* recipe, const char* filepath, c
         for (const char** p = recipe->compiler_args; *p; ++p) argc_count++;
     }
     
+    // Allocate space for compiler + all args + NULL terminator
     char** argv = malloc(sizeof(char*) * (argc_count + 2));
     if (!argv) return NULL;
 
@@ -126,7 +115,9 @@ int main(int argc, char *argv[]) {
             case 'h':
                 show_rich_help(argv[0]); 
                 return 0;
-            default: return 1;
+            default:
+                show_rich_help(argv[0]);
+                return 1;
         }
     }
     
@@ -173,19 +164,23 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        runner_argc = argc - optind;
+        runner_argc = (argc - optind); // executable + args...
         runner_argv = malloc((runner_argc + 1) * sizeof(char*));
         if (!runner_argv) { print_error("malloc failed"); return 1; }
         runner_argv[0] = temp_executable;
-        for (int i = 1; i < runner_argc; ++i) runner_argv[i] = argv[optind + i];
+        // Copy arguments passed to the script itself
+        for (int i = 1; i < runner_argc; ++i) {
+            runner_argv[i] = argv[optind + i];
+        }
         runner_argv[runner_argc] = NULL;
-    } else {
+    } else { // Interpreted language
         if (!check_command(recipe->interpreter)) {
             print_error("Interpreter '%s' not found in PATH.", recipe->interpreter);
             return 1;
         }
         
-        runner_argc = (argc - optind) + (recipe->executor_prefix ? 2 : 1);
+        int prefix_argc = recipe->executor_prefix ? 1 : 0;
+        runner_argc = 1 + prefix_argc + (argc - optind); // interpreter + [prefix] + file + file_args...
         runner_argv = malloc((runner_argc + 1) * sizeof(char*));
         if (!runner_argv) { print_error("malloc failed"); return 1; }
 
@@ -194,6 +189,7 @@ int main(int argc, char *argv[]) {
         if(recipe->executor_prefix) {
             runner_argv[current_arg++] = (char*)recipe->executor_prefix;
         }
+        // Copy the filename and all its arguments
         for (int i = 0; i < (argc - optind); ++i) {
             runner_argv[current_arg++] = argv[optind + i];
         }
@@ -215,7 +211,7 @@ int main(int argc, char *argv[]) {
     }
     
     free(runner_argv);
-    // atexit handles cleanup
+    // atexit() handles the cleanup of the temp file itself via g_temp_executable_to_cleanup
     
     return run_res.exit_code;
 }

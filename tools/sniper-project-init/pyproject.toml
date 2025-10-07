@@ -1,0 +1,14 @@
+[project]
+name = "sniper-init"
+version = "0.2.0"
+description = "A powerful tool to bootstrap new software projects from templates."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "questionary",
+    "rich",
+    "Jinja2",
+]
+
+[project.scripts]
+sniper-init = "project_init.cli:main"

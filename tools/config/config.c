@@ -1,11 +1,11 @@
-// File: config.c (Corrected and Complete Version)
+// File: config.c
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
+#include <libgen.h> // Required for dirname()
+#include <unistd.h> // Required for readlink()
 #include "cJSON.h"
 #include "config.h"
 
@@ -14,115 +14,61 @@
 #define C_GREEN "\x1B[32m"
 #define C_YELLOW "\x1B[33m"
 #define C_BLUE "\x1B[34m"
-#define C_MAGENTA "\x1B[35m"
-#define C_CYAN "\x1B[36m"
 #define C_WHITE "\x1B[37m"
 #define C_RESET "\x1B[0m"
 #define C_BOLD "\x1B[1m"
 
-// --- دوال رسم الصناديق الديناميكية (كاملة) ---
-
-int get_terminal_width() {
-    struct winsize w;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
-        return w.ws_col;
-    }
-    return 80;
-}
-
-void print_char_repeat(const char* c, int times) {
-    if (times < 0) return;
-    for (int i = 0; i < times; ++i) {
-        printf("%s", c);
-    }
-}
-
-void print_panel_top(const char* title, const char* color, int width) {
-    printf("%s┌", color);
-    if (title && strlen(title) > 0) {
-        int title_len = strlen(title);
-        // Approximation for color codes length
-        // int non_visible_len = 15; 
-        int line_len = (width - title_len - 4) / 2; // 4 for " [] "
-        if (line_len < 1) line_len = 1;
+// --- NEW Hybrid Help Function ---
+void print_help(const char* prog_name) {
+    // Check if Python and Rich are available
+    if (system("python3 -c 'import rich' >/dev/null 2>&1") == 0) {
+        char command[1024];
+        char executable_path[1024];
+        char* dir_name;
         
-        print_char_repeat("─", line_len);
-        printf("[ %s%s%s %s %s%s ]", C_RESET, C_BOLD, color, title, C_RESET, color);
-        
-        // This calculation is complex due to invisible ANSI codes.
-        // We will simplify and just fill some space. A perfect calculation is tricky.
-        int remaining_width = width - line_len - title_len - 5;
-        print_char_repeat("─", remaining_width > 0 ? remaining_width : 0);
-
+        // Find the directory of the currently running C executable
+        ssize_t len = readlink("/proc/self/exe", executable_path, sizeof(executable_path) - 1);
+        if (len != -1) {
+            executable_path[len] = '\0';
+            dir_name = dirname(executable_path);
+            // Assume help_printer.py is in the same directory as the executable
+            snprintf(command, sizeof(command), "python3 %s/help_printer.py %s", dir_name, prog_name);
+            system(command);
+        } else {
+            // Fallback if readlink fails (less reliable, assumes script is in current dir)
+            snprintf(command, sizeof(command), "python3 help_printer.py %s", prog_name);
+            system(command);
+        }
     } else {
-        print_char_repeat("─", width - 2);
+        // --- Simple Text Fallback Help ---
+        printf("\n%sSniper Config Manager%s - A simple tool to manage JSON configuration.\n", C_BOLD, C_RESET);
+        printf("%sNOTE:%s For a better help screen, please install Python3 and the 'rich' library (pip install rich)\n\n", C_YELLOW, C_RESET);
+        
+        printf("%sUSAGE:\n%s", C_YELLOW, C_RESET);
+        printf("  %s <command> [category] [key] [value]\n\n", prog_name);
+        
+        printf("%sCOMMANDS:\n%s", C_YELLOW, C_RESET);
+        printf("  %s%-10s%s <category> <key> <value>    Set or update a configuration value.\n", C_GREEN, "set", C_RESET);
+        printf("  %s%-10s%s <category> <key>            Retrieve a specific value.\n", C_GREEN, "get", C_RESET);
+        printf("  %s%-10s%s <category> <key>            Delete a key-value pair.\n", C_GREEN, "delete", C_RESET);
+        printf("  %s%-10s%s                            Show this help message.\n\n", C_GREEN, "help", C_RESET);
+        
+        printf("%sEXAMPLE:\n%s", C_YELLOW, C_RESET);
+        printf("  %s set user prompt_text \"Hello Sniper\"\n", prog_name);
     }
-    printf("┐%s\n", C_RESET);
 }
 
-void print_panel_bottom(const char* color, int width) {
-    printf("%s└", color);
-    print_char_repeat("─", width - 2);
-    printf("┘%s\n", C_RESET);
-}
-
-void print_panel_line(const char* text, const char* color, int width) {
-    int text_len = 0;
-    int in_escape = 0;
-    for (const char* p = text; *p; ++p) {
-        if (*p == '\x1B') in_escape = 1;
-        else if (in_escape && *p == 'm') in_escape = 0;
-        else if (!in_escape) text_len++;
-    }
-    int padding = width - text_len - 4;
-    if (padding < 0) padding = 0;
-    printf("%s│%s %s%*s %s│%s\n", color, C_RESET, text, padding, "", color, C_RESET);
-}
-
-// --- دالة المساعدة (كاملة) ---
-void print_help(void) {
-    int width = get_terminal_width();
-    char title_buffer[256];
-    snprintf(title_buffer, sizeof(title_buffer), "%sSNIPER: Config Manager%s", C_BOLD, C_RESET);
-    print_panel_top("", C_MAGENTA, width);
-    print_panel_line(title_buffer, C_MAGENTA, width);
-    print_panel_line("A tool to manage the main `sniper-config.json` file.", C_MAGENTA, width);
-    print_panel_bottom(C_MAGENTA, width);
-    
-    char usage_buffer[256];
-    snprintf(usage_buffer, sizeof(usage_buffer), "  %sUsage:%s %sconfiger%s %s<command>%s %s[args...]%s",
-           C_BOLD, C_RESET, C_YELLOW, C_RESET, C_GREEN, C_RESET, C_CYAN, C_RESET);
-    printf("\n%s\n\n", usage_buffer);
-
-    print_panel_top("Commands", C_BLUE, width);
-    print_panel_line("  set    <category> <key> <value>    Set or update a configuration value.", C_BLUE, width);
-    print_panel_line("  get    <category> <key>            Retrieve a specific value.", C_BLUE, width);
-    print_panel_line("  delete <category> <key>            Delete a key-value pair.", C_BLUE, width);
-    print_panel_line("  help                               Show this help message.", C_BLUE, width);
-    print_panel_bottom(C_BLUE, width);
-
-    print_panel_top("Examples", C_GREEN, width);
-    print_panel_line("  # Set a custom prompt text for a user", C_GREEN, width);
-    print_panel_line("  configer set user prompt_text \"Hello Sniper\"", C_GREEN, width);
-    print_panel_line(" ", C_GREEN, width);
-    print_panel_line("  # Retrieve the user's prompt text", C_GREEN, width);
-    print_panel_line("  configer get user prompt_text", C_GREEN, width);
-    print_panel_bottom(C_GREEN, width);
-}
-
-// --- دالة السجل (مكتملة الآن) ---
 void log_change(const char *base_path, const char *action, const char *category, const char *key, const char *value) {
     char log_filepath[1024];
-    snprintf(log_filepath, sizeof(log_filepath), "%s/config/sniper-config.log", base_path);
+    snprintf(log_filepath, sizeof(log_filepath), "%s/sniper-config.log", base_path);
 
     FILE *log_file = fopen(log_filepath, "a");
     if (!log_file) {
-        return; // فشل صامت
+        return; // Silent fail
     }
 
     time_t now = time(NULL);
     char time_str[20];
-    // كتابة الوقت بصيغة ISO 8601
     strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", localtime(&now));
 
     if (strcmp(action, "SET") == 0 && value) {
@@ -134,7 +80,6 @@ void log_change(const char *base_path, const char *action, const char *category,
     fclose(log_file);
 }
 
-// --- باقي الدوال (كاملة ومصححة) ---
 char* read_file(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (!file) {
@@ -232,7 +177,6 @@ int get_value(const char *filepath, const char *category, const char *key) {
     return 0;
 }
 
-// --- دالة delete_value (مكتملة الآن) ---
 int delete_value(const char *filepath, const char *base_path, const char *category, const char *key) {
     char *data = read_file(filepath);
     if (!data) {
@@ -254,7 +198,6 @@ int delete_value(const char *filepath, const char *base_path, const char *catego
         printf(C_YELLOW "⚠ Warning:" C_WHITE " Key or category not found. Nothing to delete.\n" C_RESET);
         cJSON_Delete(json);
         free(data);
-        // لا يعتبر خطأ فادحًا، بل مجرد عملية لم تتم
         return 0;
     }
 

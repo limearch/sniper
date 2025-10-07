@@ -7,6 +7,7 @@
         "cryptography",
         "tqdm",
         "autopep8",
+        "jinja2",
         "jsbeautifier",
         "colorama",
         "prompt_toolkit",

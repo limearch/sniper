@@ -1,3 +1,4 @@
+# Handles loading and creating user configuration
 # project_init/config.py
 import os
 import json

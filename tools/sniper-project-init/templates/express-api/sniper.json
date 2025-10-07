@@ -1,0 +1,1 @@
+{"name":"Node.js Express API","questions":[{"key":"version","prompt":"Initial version:","default":"1.0.0"}],"post_init_commands":[{"command":"npm install","message":"Installing Node.js dependencies..."}],"next_steps":["cd {{ project_name }}","npm run dev"]}

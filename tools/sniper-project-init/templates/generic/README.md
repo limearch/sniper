@@ -1,1 +1,0 @@
-# generic template\n\nPlaceholder for generic template files.\n

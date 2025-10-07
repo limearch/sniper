@@ -1,142 +1,224 @@
 #!/usr/bin/python3
-# ^ We use the absolute path for maximum reliability in Termux
+# -*- coding: utf-8 -*-
+
+"""
+SNIPER: view-source
+A robust, feature-rich source code viewer with syntax highlighting for the command line.
+This tool intelligently detects file types, supports multiple themes, and manages its own
+settings within the global sniper-config.json.
+"""
 
 import sys
 import argparse
 import os
+import json
+from pathlib import Path
+from datetime import datetime
+from threading import Lock
 
-# --- Step 1: Graceful Rich Import ---
-# Try to import Rich. If it fails, print a helpful, colored message and exit.
+# --- Dependency Handling ---
 try:
     from rich.console import Console
     from rich.syntax import Syntax
     from rich.panel import Panel
     from rich.text import Text
     from rich.theme import Theme
+    from rich.columns import Columns
+    from pygments.styles import get_all_styles
 except ImportError:
-    # Use basic prints if Rich isn't available
-    print("\033[91m[ERROR]\033[0m The 'rich' library is not installed.")
-    print("Please install it to use this tool: \033[93mpip install rich\033[0m")
+    print("\033[91m[ERROR]\033[0m The 'rich' and 'Pygments' libraries are required.")
+    print("Please install them to use this tool: \033[93mpip install rich Pygments\033[0m")
     sys.exit(1)
 
-# --- Step 2: Setup Console with a Custom Theme ---
-# This theme allows us to use simple names for colors like "info", "success", "error"
-custom_theme = Theme({
-    "info": "blue",
+# --- Constants & Global Configuration ---
+SNIPER_THEME = Theme({
+    "info": "cyan",
     "success": "green",
     "warn": "yellow",
     "error": "bold red"
 })
-console = Console(theme=custom_theme)
+console = Console(theme=SNIPER_THEME)
+DEFAULT_THEME = "monokai"
+CONFIG_LOCK = Lock() # To prevent race conditions when writing to the config file
 
-# --- Step 3: Core Function to Display the File ---
-def display_source_code(file_path, theme, show_line_numbers, word_wrap):
-    """
-    Reads a file and prints it to the console with syntax highlighting.
-    """
-    try:
-        # Check if the path is a directory
-        if os.path.isdir(file_path):
-            console.print(f"'{file_path}' is a directory, not a file.", style="error")
-            return
+# --- Helper Functions for Project Integration ---
 
-        # Syntax.from_path is the most robust way to do this.
-        # It handles file reading, language detection, and error handling.
-        syntax = Syntax.from_path(
-            file_path,
-            theme=theme,
-            line_numbers=show_line_numbers,
-            word_wrap=word_wrap
-        )
+def get_project_root() -> Path | None:
+    """Finds the root directory of the SNIPER project by searching upwards for key files."""
         
-        console.rule(f"[bold cyan]Source: {file_path}[/bold cyan]", style="cyan")
+    current_dir = Path(__file__).parent.resolve()
+
+    while current_dir != Path(current_dir.root):
+        if (current_dir.parent / 'config/sniper-config.json').is_file():
+            return current_dir.parent
+        current_dir = current_dir.parent
+    return None
+
+PROJECT_ROOT = get_project_root()
+CONFIG_PATH = PROJECT_ROOT / 'config/sniper-config.json' if PROJECT_ROOT else None
+LOG_PATH = PROJECT_ROOT / 'config/sniper-config.log' if PROJECT_ROOT else None
+
+# --- Configuration & Logging Management ---
+
+def log_change(action: str, category: str, key: str, value: str):
+    """Logs a configuration change to sniper-config.log."""
+    if not LOG_PATH:
+        return
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = f"[{now}] {action}: category='{category}' key='{key}' value='{value}'\n"
+        with CONFIG_LOCK:
+            with open(LOG_PATH, 'a') as f:
+                f.write(log_entry)
+    except IOError:
+        # Fail silently if logging fails
+        pass
+
+def load_global_config() -> dict:
+    """Loads the global sniper-config.json file safely."""
+    if not CONFIG_PATH or not CONFIG_PATH.is_file():
+        return {}
+    with CONFIG_LOCK:
+        try:
+            with open(CONFIG_PATH, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}
+
+def save_global_config(config: dict) -> bool:
+    """Saves the configuration dictionary directly to the sniper-config.json file."""
+    if not CONFIG_PATH:
+        console.print("Error: Could not find sniper-config.json to save settings.", style="error")
+        return False
+    with CONFIG_LOCK:
+        try:
+            with open(CONFIG_PATH, 'w') as f:
+                json.dump(config, f, indent=4)
+            return True
+        except IOError as e:
+            console.print(f"Error saving configuration: {e}", style="error")
+            return False
+
+def set_default_theme(theme_name: str):
+    """Sets the default theme by modifying sniper-config.json directly."""
+    config = load_global_config()
+    
+    # Ensure the 'view-source' category exists
+    config.setdefault('view-source', {})['default_theme'] = theme_name
+    
+    if save_global_config(config):
+        console.print(f"Default theme set to '[bold]{theme_name}[/bold]'.", style="success")
+        log_change("SET", "view-source", "default_theme", theme_name)
+    else:
+        console.print(f"Failed to set default theme.", style="error")
+
+# --- Core Logic ---
+
+def detect_lexer_from_shebang(file_path: str) -> str | None:
+    """Detects the programming language from the shebang line."""
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            first_line = f.readline().strip()
+        if first_line.startswith("#!"):
+            shebang_map = {"python": "python", "bash": "bash", "sh": "bash", "node": "javascript", "ruby": "ruby", "perl": "perl"}
+            for key, lexer in shebang_map.items():
+                if key in first_line: return lexer
+    except IOError:
+        return None
+    return None
+
+def display_source_code(file_path: str, theme: str, show_line_numbers: bool, word_wrap: bool):
+    """Reads and displays a file with syntax highlighting."""
+    if not Path(file_path).is_file():
+        console.print(f"Error: Path is not a valid file: '{file_path}'", style="error")
+        return
+    
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            code = f.read()
+            
+        _, extension = os.path.splitext(os.path.basename(file_path))
+        lexer_name = Syntax.guess_lexer(file_path, code=code) if extension else (detect_lexer_from_shebang(file_path) or "text")
+
+        syntax = Syntax(code, lexer_name, theme=theme, line_numbers=show_line_numbers, word_wrap=word_wrap)
+        
+        console.rule(f"[bold cyan]Source: {file_path} | Theme: {theme}[/bold cyan]", style="cyan")
         console.print(syntax)
         console.rule(style="cyan")
-
-    except FileNotFoundError:
-        console.print(f"The file '{file_path}' was not found.", style="error")
     except Exception as e:
-        # This will catch errors if the file is binary or has encoding issues
-        console.print(f"Could not read or process the file: {e}", style="error")
+        console.print(f"Could not process the file: {e}", style="error")
+        console.print("The file might be binary or have an unsupported text encoding.", style="info")
 
-# --- Step 4: Argument Parsing and Help Screen ---
+def show_help(default_theme: str):
+    """Displays a custom, rich-formatted help screen."""
+    title = Text("SNIPER: view-source", style="bold magenta", justify="center")
+    usage = Text.from_markup("[bold]Usage:[/] [yellow]view-source[/] [cyan]<FILE_PATH>[/] [green][OPTIONS][/]")
+    
+    options_text = f"""
+[bold]Arguments:[/b]
+  [cyan]<FILE_PATH>[/]            The source file to display.
+
+[bold]Options:[/b]
+  [green]-t, --theme <THEME>[/]     Set color theme (current default: [bold]{default_theme}[/]).
+  [green]-n, --no-lines[/]        Disable line numbers.
+  [green]-w, --no-wrap[/]         Disable word wrapping.
+  [green]-h, --help[/]            Show this help message.
+
+[bold]Configuration:[/b]
+  [green]--list-themes[/]          List all available color themes.
+  [green]--set-default-theme <T>[/] Set a new default theme in [cyan]sniper-config.json[/].
+"""
+    
+    examples_text = """
+[bold]Examples:[/b]
+  [yellow]view-source[/] [cyan]my_script.py[/]
+  [yellow]view-source[/] [cyan]main.js[/] [green]-t dracula --no-lines[/]
+  [yellow]view-source[/] [green]--set-default-theme solarized-dark[/]
+"""
+
+    console.print(Panel(title, border_style="magenta", padding=(0, 1)))
+    console.print(usage, "\n")
+    console.print(Panel(Text.from_markup(options_text.strip()), title="Details", border_style="blue"))
+    console.print(Panel(Text.from_markup(examples_text.strip()), title="Examples", border_style="green"))
+
+def list_themes():
+    """Displays all available Pygments themes."""
+    console.print(Panel(Text("Available Themes", justify="center", style="bold yellow")))
+    console.print(Columns(sorted(list(get_all_styles())), equal=True, expand=True))
+    
 def main():
-    parser = argparse.ArgumentParser(
-        add_help=False, # Disable default help to use our own
-        description="A tool to view source code with syntax highlighting."
-    )
-    parser.add_argument(
-        "file_path",
-        metavar="<FILE_PATH>",
-        nargs='?', # Make it optional so --help can be called alone
-        help="The path to the source code file to display."
-    )
-    parser.add_argument(
-        "-t", "--theme",
-        default="monokai",
-        help="The color theme for syntax highlighting. (e.g., monokai, dracula, solarized-dark)"
-    )
-    parser.add_argument(
-        "-n", "--no-lines",
-        action="store_false",
-        dest="line_numbers",
-        help="Disable line numbers."
-    )
-    parser.add_argument(
-        "-w", "--no-wrap",
-        action="store_false",
-        dest="word_wrap",
-        help="Disable word wrapping for long lines."
-    )
-    parser.add_argument(
-        '-h', '--help',
-        action='store_true',
-        help='Show this help message and exit.'
-    )
+    """Parses arguments and orchestrates the tool's execution."""
+    config = load_global_config()
+    default_theme = config.get("view-source", {}).get("default_theme", DEFAULT_THEME)
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("file_path", nargs='?', help="Path to the source code file.")
+    parser.add_argument("-t", "--theme", default=default_theme, help=f"Color theme (default: {default_theme}).")
+    parser.add_argument("-n", "--no-lines", action="store_false", dest="line_numbers", help="Disable line numbers.")
+    parser.add_argument("-w", "--no-wrap", action="store_false", dest="word_wrap", help="Disable word wrapping.")
+    parser.add_argument('-h', '--help', action='store_true', help='Show help message.')
+    parser.add_argument('--list-themes', action='store_true', help='List all available themes.')
+    parser.add_argument('--set-default-theme', metavar="THEME", help='Set and save a new default theme.')
 
     args = parser.parse_args()
 
-    # --- Custom Help Screen Logic ---
-    if args.help or not args.file_path:
-        title = Text("SNIPER: view-source", style="bold magenta", justify="center")
-        description = Text(
-            "A tool to view source code with syntax highlighting.",
-            style="info"
-        )
-        
-        usage = Text.from_markup(
-            "[bold]Usage:[/] [yellow]view-source[/] [cyan]<FILE_PATH>[/] [green][OPTIONS][/]"
-        )
-        
-        options_text = """
-[bold]Arguments:[/b]
-  [cyan]<FILE_PATH>[/]       The source file to display.
+    if args.list_themes:
+        list_themes()
+    elif args.set_default_theme:
+        theme_name = args.set_default_theme
+        if theme_name in list(get_all_styles()):
+            set_default_theme(theme_name)
+        else:
+            console.print(f"Theme '{theme_name}' is not a valid theme.", style="error")
+            console.print("Use --list-themes to see all available options.", style="info")
+    elif args.help or not args.file_path:
+        show_help(default_theme)
+    else:
+        display_source_code(args.file_path, args.theme, args.line_numbers, args.word_wrap)
 
-[bold]Options:[/b]
-  [green]-t, --theme[/]      Set the color theme (default: monokai).
-  [green]-n, --no-lines[/]   Disable line numbers.
-  [green]-w, --no-wrap[/]    Disable word wrapping.
-  [green]-h, --help[/]       Show this help message.
-"""
-        
-        examples_text = """
-[bold]Examples:[/b]
-  [yellow]view-source[/] [cyan]my_script.py[/]
-  [yellow]view-source[/] [cyan]main.js[/] [green]--theme dracula[/] [green]--no-lines[/]
-  [yellow]view-source[/] [cyan]main.js[/] [green]--theme solarized-dark[/] [green][/]
-  [yellow]view-source[/] [cyan]main.js[/] [green]--theme monokai[/] [green][/]
-"""
-        
-        console.print(Panel(title, border_style="magenta"))
-        console.print(description)
-        console.print(usage)
-        console.print(Panel(Text.from_markup(options_text), title="Details", border_style="blue"))
-        console.print(Panel(Text.from_markup(examples_text), title="Examples", border_style="green"))
-        sys.exit(0)
-
-    # --- Main Execution Logic ---
-    display_source_code(args.file_path, args.theme, args.line_numbers, args.word_wrap)
-
-# --- Step 5: Final Entry Point ---
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        console.print("\nOperation cancelled by user.", style="warn")
+        sys.exit(0)

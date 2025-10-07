@@ -1,0 +1,1 @@
+{"name":"React + TypeScript (Vite)","post_init_commands":[{"command":"npm create vite@latest . -- --template react-ts","message":"Bootstrapping React+TS with Vite..."},{"command":"npm install","message":"Installing dependencies..."}],"next_steps":["cd {{ project_name }}","npm run dev"]}

@@ -55,7 +55,7 @@ void print_stage(const char* stage, const char* format, ...) {
 
 // --- NEW & UPDATED HELP-RELATED FUNCTIONS ---
 
-int get_terminal_width() {
+int get_terminal_width(void) {
     struct winsize w;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
         return w.ws_col;

@@ -1,0 +1,1 @@
+{"name":"C++ Project","next_steps":["cd {{ project_name }}","make","./build/app"]}

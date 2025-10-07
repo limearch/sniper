@@ -1,93 +1,17 @@
 #!/usr/bin/env python3
+# bin/sniper-init
+# This script serves as a simple launcher for development purposes.
+# When the package is installed via pip, the entry point in pyproject.toml is used instead.
+
 import os
 import sys
-import argparse
-import questionary
 
-# Add the parent directory to the Python path to find the 'project_init' package
+# Add the project's root directory (one level up from 'bin') to the Python path.
+# This allows finding the 'project_init' package when running the script directly
+# without installing it.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from project_init.utils import Colors
-from project_init.config import load_config
-from project_init.core import create_project, print_summary, print_error
-
-def get_available_templates(templates_dirs):
-    templates = []
-    for dir_path in templates_dirs:
-        if dir_path and os.path.isdir(dir_path):
-            templates.extend([d for d in os.listdir(dir_path) if os.path.isdir(os.path.join(dir_path, d))])
-    return sorted(list(set(templates)))
-
-def main():
-    config = load_config()
-    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    default_templates_dir = os.path.join(script_dir, 'templates')
-    custom_templates_dir = config.get('custom_templates_dir')
-    available_templates = get_available_templates([default_templates_dir, custom_templates_dir])
-
-    # --- Rich Help Formatter ---
-    parser = argparse.ArgumentParser(
-        prog="sniper-init",
-        formatter_class=argparse.RawTextHelpFormatter,
-        description=f"""
-{Colors.BOLD}{Colors.MAGENTA}SNIPER: Project Initializer{Colors.ENDC}
-A powerful tool to bootstrap new software projects from templates.
-Run without arguments for an interactive session.
-""",
-        epilog=f"""
-{Colors.BOLD}Available Templates:{Colors.ENDC} {', '.join(available_templates) or 'None found'}
-
-{Colors.BOLD}Examples:{Colors.ENDC}
-  {Colors.YELLOW}sniper-init{Colors.ENDC}                               - Start interactive mode
-  {Colors.YELLOW}sniper-init {Colors.CYAN}my-api{Colors.ENDC} -t {Colors.CYAN}python{Colors.ENDC}          - Create a Python project named 'my-api'
-  {Colors.YELLOW}sniper-init {Colors.CYAN}my-site{Colors.ENDC} -t {Colors.CYAN}nodejs{Colors.ENDC} --no-git - Create a Node.js project without Git
-"""
-    )
-    # --- Arguments ---
-    parser.add_argument("name", nargs='?', help="The name of the new project.")
-    parser.add_argument("-t", "--template", choices=available_templates, help="The project template to use.")
-    parser.add_argument("--no-git", action="store_false", dest="git", help="Do not initialize a Git repository.")
-    parser.add_argument("--with-docker", action="store_true", dest="dockerfile", help="Include a Dockerfile.")
-    
-    args = parser.parse_args()
-
-    # --- Decide on Interactive vs. Direct mode ---
-    if not args.name or not args.template:
-        # --- Interactive Mode ---
-        print(f"{Colors.GREEN}--- SNIPER Interactive Session ---{Colors.ENDC}\n")
-        try:
-            name = args.name or questionary.text("Project name:").ask()
-            if not name: return
-            
-            template = args.template or questionary.select("Project type:", choices=available_templates).ask()
-            if not template: return
-            
-            git = questionary.confirm("Initialize Git repository?", default=True).ask()
-            dockerfile = questionary.confirm("Include a Dockerfile?", default=False).ask()
-            license_choice = questionary.select("Choose a license:", choices=['None', 'MIT', 'GPLv3'], default='None').ask()
-
-            options = {'git': git, 'dockerfile': dockerfile, 'license': license_choice if license_choice != 'None' else None}
-        except (KeyboardInterrupt, TypeError):
-            print("\nOperation cancelled by user.")
-            return
-    else:
-        # --- Direct (Command-Line) Mode ---
-        name = args.name
-        template = args.template
-        options = {'git': args.git, 'dockerfile': args.dockerfile, 'license': 'MIT'} # Default license for direct mode
-    
-    # --- Execution ---
-    variables = {
-        "{{project_name}}": name,
-        "{{project_type}}": template,
-        "{{author_name}}": config.get('author_name', 'Your Name'),
-    }
-    template_dir_to_use = custom_templates_dir if custom_templates_dir and os.path.exists(os.path.join(custom_templates_dir, template)) else default_templates_dir
-
-    if create_project(name, template, template_dir_to_use, variables, options):
-        print_summary(name, template)
-    else:
-        sys.exit(1)
+from project_init.cli import main
 
 if __name__ == "__main__":
     main()

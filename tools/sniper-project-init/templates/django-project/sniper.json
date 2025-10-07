@@ -1,0 +1,13 @@
+{
+  "name": "Django Web Project",
+  "description": "A full-featured Django project bootstrapped with the official CLI.",
+  "post_init_commands": [
+    { "command": "python3 -m venv .venv", "message": "Creating Python virtual environment..." },
+    { "command": "source .venv/bin/activate && pip install Django && django-admin startproject config .", "message": "Bootstrapping Django project..." }
+  ],
+  "next_steps": [
+    "cd {{ project_name }}",
+    "source .venv/bin/activate",
+    "python manage.py runserver"
+  ]
+}
