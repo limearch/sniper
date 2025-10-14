@@ -9,6 +9,7 @@
         "autopep8",
         "jinja2",
         "jsbeautifier",
+        "cython",
         "colorama",
         "prompt_toolkit",
         "questionary"

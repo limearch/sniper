@@ -1,0 +1,56 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: listen - Simple Network Listener & Server", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]listen[/] [cyan]<PORT>[/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About listen[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A versatile network utility with two modes:",
+          "  1. A raw [bold]TCP listener[/] to capture incoming data, useful for debugging or simple shells.",
+          "  2. A simple [bold]HTTP server[/] to quickly share files from the current directory."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Arguments & Options[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [cyan]<PORT>[/]               The port number to listen on.",
+          "",
+          "  [green]--serve[/]             [bold]HTTP Server Mode.[/] Starts a simple file server.",
+          "  [green]--log <filename>[/]   [bold]TCP Listener Mode.[/] Log all received data to a file.",
+          "  [green]-h, --help[/]         Show this help message and exit."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Start a simple TCP listener on port 4444 to catch a reverse shell:",
+          "  [yellow]listen[/] [cyan]4444[/]",
+          "",
+          "[#] Start an HTTP server to share files from the current directory on port 8000:",
+          "  [yellow]listen[/] [cyan]8000[/] [green]--serve[/]",
+          "",
+          "[#] Listen for data on port 9001 and log everything to 'capture.log':",
+          "  [yellow]listen[/] [cyan]9001[/] [green]--log capture.log[/]"
+        ]
+      }]
+    }
+  ]
+}

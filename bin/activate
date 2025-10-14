@@ -155,7 +155,8 @@ if [ -z "${VIRTUAL_ENV_DISABLE_PROMPT:-}" ] ; then
     VIRTUAL_ENV_PROMPT="(py-env) "
     export VIRTUAL_ENV_PROMPT
 fi
-
+export PYTHONPATH=$PYTHONPATH:"${VER}"
+export PYTHONPATH=$PYTHONPATH:"${VIRTUAL_ENV}"
 # Call hash to forget past commands. Without forgetting
 # past commands the $PATH changes we made may not be respected
 hash -r 2> /dev/null

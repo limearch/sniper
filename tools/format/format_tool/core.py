@@ -3,10 +3,11 @@ import os
 import shutil
 import concurrent.futures
 
+
 from .formatters.json_formatter import format_json
 from .formatters.py_formatter import format_python
 from .formatters.generic_formatter import format_c_cpp_java, format_shell
-
+from lib.sniper_env import env
 FORMATTERS = {
     '.json': format_json,
     '.py': format_python,
@@ -26,7 +27,7 @@ def process_file(file_path, spaces, backup, verbose, check_mode):
 
     if not formatter_func:
         if verbose:
-            print(f"Skipping '{os.path.basename(file_path)}': No formatter for '{extension}'")
+            env.log.warning(f"Skipping '{os.path.basename(file_path)}': No formatter for '{extension}'")
         return (file_path, False)
 
     try:
@@ -43,7 +44,7 @@ def process_file(file_path, spaces, backup, verbose, check_mode):
 
         if needs_formatting:
             if check_mode:
-                print(f"'{file_path}' needs formatting.")
+                env.log.inf(f"'{file_path}' needs formatting.")
             else:
                 if backup:
                     shutil.copy2(file_path, file_path + ".bak")
@@ -52,15 +53,15 @@ def process_file(file_path, spaces, backup, verbose, check_mode):
                     f.write(formatted_content)
                 
                 if verbose:
-                    print(f"Formatted '{file_path}'")
+                    env.log.success(f"Formatted '{file_path}'")
         else:
             if verbose:
-                print(f"'{os.path.basename(file_path)}' is already formatted.")
+                env.log.info(f"'{os.path.basename(file_path)}' is already formatted.")
 
         return (file_path, needs_formatting)
 
     except Exception as e:
-        print(f"Failed to process '{file_path}': {e}")
+        env.log.error(f"Failed to process '{file_path}': {e}")
         return (file_path, False)
 
 
@@ -71,7 +72,7 @@ def format_path(path, spaces, backup, verbose, filter_ext, check_mode, parallel)
     if os.path.isfile(path):
         files_to_process.append(path)
     elif os.path.isdir(path):
-        if verbose: print(f"Recursively scanning '{path}'...")
+        if verbose: env.log.info(f"Recursively scanning '{path}'...")
         for root, _, files in os.walk(path):
             for file in files:
                 full_path = os.path.join(root, file)
@@ -81,11 +82,11 @@ def format_path(path, spaces, backup, verbose, filter_ext, check_mode, parallel)
                 else:
                     files_to_process.append(full_path)
     else:
-        print(f"Error: Path '{path}' is not a valid file or directory.")
+        env.log.error(f"Path '{path}' is not a valid file or directory.")
         return 1
 
     if not files_to_process:
-        print("No files found to process.")
+        env.log.warning("No files found to process.")
         return 0
 
     files_that_need_formatting = []
@@ -93,7 +94,7 @@ def format_path(path, spaces, backup, verbose, filter_ext, check_mode, parallel)
     tasks = [(f, spaces, backup, verbose, check_mode) for f in files_to_process]
 
     if parallel and len(files_to_process) > 1:
-        if verbose: print(f"Processing {len(files_to_process)} files in parallel...")
+        if verbose: env.log.info(f"Processing {len(files_to_process)} files in parallel...")
         with concurrent.futures.ThreadPoolExecutor() as executor:
             results = executor.map(lambda p: process_file(*p), tasks)
             for file_path, needs_formatting in results:
@@ -108,12 +109,12 @@ def format_path(path, spaces, backup, verbose, filter_ext, check_mode, parallel)
     # --- Final Report and Exit Code ---
     if check_mode:
         if files_that_need_formatting:
-            print(f"\nCheck failed: {len(files_that_need_formatting)} file(s) need formatting.")
+            env.log.error(f"\nCheck failed: {len(files_that_need_formatting)} file(s) need formatting.")
             return 1 # Exit with error code for CI/CD
         else:
-            print("\nCheck passed: All files are correctly formatted.")
+            env.log.info("Check passed: All files are correctly formatted.")
             return 0
     
-    print(f"\nFormatting complete. {len(files_that_need_formatting)} file(s) were modified.")
+    env.log.success(f"Formatting complete. {len(files_that_need_formatting)} file(s) were modified.")
     return 0
     

@@ -1,33 +1,62 @@
-# Makefile for compress tool
+#
+# Makefile for the 'compress' tool
+#
 
-CC = gcc
-# Note: You need to link against libzip. The exact flags can vary.
-# On Debian/Ubuntu: -lzip
-# On Termux, you might need to specify paths.
-CFLAGS = -Wall -Wextra -std=c11 -O2 -I.
-LDFLAGS = -lzip
-SRC = main.c compress_folder.c zip_folder.c zip_thread.c utils.c tar_compress.c
-OBJS = $(SRC:.c=.o)
-TARGET = bin/compress
-HELP_SCRIPT = help_printer.py
+# --- Compiler and Flags ---
+CC = clang
+# Include directories: current directory (.), tool headers, and the central C utils library
+CFLAGS = -Wall -Wextra -I. -I../../lib/c_utils
 
-all: $(TARGET) copy_helper
+# Linker flags: Link against the required 'libzip' for ZIP functionality,
+# and our central 'libsniper_c_utils' for logging, parsing, and help.
+LDFLAGS = -lzip -L../../lib/c_utils -lsniper_c_utils
 
-$(TARGET): $(OBJS)
-	@mkdir -p bin
-	$(CC) $(OBJS) -o $@ $(LDFLAGS)
-	@echo "Build successful! Executable is at $(TARGET)"
+# --- Project Structure ---
+TARGET_DIR := bin
+OBJ_DIR    := object
 
-# --- NEW RULE ---
-copy_helper:
-	@cp $(HELP_SCRIPT) bin/
-	@echo "Copied Python helper to bin/"
-# ----------------
+# Final executable path
+TARGET := $(TARGET_DIR)/compress
 
-%.o: %.c
+# --- Source Files ---
+# Automatically find all .c files in the current directory.
+SRC := $(wildcard *.c)
+
+# --- Object Files ---
+# Generate object file paths by placing them in the OBJ_DIR.
+# e.g., "main.c" becomes "object/main.o"
+OBJ := $(patsubst %.c, $(OBJ_DIR)/%.o, $(SRC))
+
+# --- Phony Targets (commands that are not files) ---
+.PHONY: all clean c_utils_lib
+
+# --- Main Rules ---
+
+# Default target: build the library dependency, then the main executable.
+all: c_utils_lib $(TARGET)
+
+# Dependency Rule: Ensures the central C utility library is built before this tool.
+# This makes the build process self-contained. The '-s' flag silences the make output.
+c_utils_lib:
+	@echo "--- [compress] Building dependency: libsniper_c_utils.a ---"
+	@$(MAKE) -s -C ../../lib/c_utils
+
+# Linking Rule: Links all object files to create the final executable.
+$(TARGET): $(OBJ)
+	@echo "--- [compress] Linking executable: $@"
+	@mkdir -p $(TARGET_DIR)
+	$(CC) $(OBJ) -o $@ $(LDFLAGS)
+
+# --- Pattern Rule for Compilation ---
+# This generic rule tells 'make' how to build any .o file from its corresponding .c file.
+$(OBJ_DIR)/%.o: %.c
+	@mkdir -p $(OBJ_DIR)
+	@echo "--- [compress] Compiling: $< -> $@"
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# --- Cleanup Rule ---
+# Removes generated object files and the final executable. Also cleans the dependency library.
 clean:
-	rm -f *.o $(TARGET) bin/$(HELP_SCRIPT)
-
-.PHONY: all clean copy_helper
+	@echo "--- [compress] Cleaning object files and executable ---"
+	rm -rf $(OBJ_DIR) $(TARGET_DIR)
+	@$(MAKE) -s -C ../../lib/c_utils clean

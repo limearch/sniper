@@ -1,0 +1,108 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: run - The Universal Code Runner", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]run[/] [green][OPTIONS][/] [cyan]<file_to_run>[/] [dim][args...][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About run[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "An intelligent code runner that automatically detects a source file's language,",
+          "compiles it in memory (if necessary), and executes it. It supports a wide",
+          "range of compiled and interpreted languages for a seamless development workflow."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]⚠️ Dependencies[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": "The 'run' tool relies on having the necessary compilers and interpreters installed and in your system's [bold]PATH[/]. For example, to run a [cyan].go[/] file, the [cyan]go[/] command must be available."
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Core Features[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-t, --time[/]             Measure and report execution time, memory usage, and CPU stats.",
+          "  [green]-w, --watch[/]            Watch the file for changes and automatically re-run on modification.",
+          "  [green]-j, --parallel[/]         Run multiple files concurrently. All files after this flag are run in parallel.",
+          "  [green]-i, --interactive[/]      Enter an interactive shell (REPL) to execute shell commands on the fly."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]Resource Limiting[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]--limit-time <sec>[/]     Terminate the program if it runs longer than N seconds.",
+          "  [green]--limit-mem <KB>[/]       Terminate the program if it uses more memory than N kilobytes."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[blue]General Options[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-v, --verbose[/]          Enable verbose output, showing compilation and execution commands.",
+          "  [green]--no-color[/]            Disable colored output in the 'run' tool's own messages.",
+          "  [green]-h, --help[/]             Display this help message and exit."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]💡 Examples[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Compile and run a C++ file, measuring its performance:",
+          "  [yellow]run[/] [green]-t[/] [cyan]main.cpp[/]",
+          "",
+          "[#] Run a Python script and pass arguments to it:",
+          "  [yellow]run[/] [cyan]my_script.py[/] [dim]--user=admin --port=8080[/]",
+          "",
+          "[#] Watch a Go program for changes and re-run automatically:",
+          "  [yellow]run[/] [green]-w[/] [cyan]server.go[/]",
+          "",
+          "[#] Run three different scripts in parallel:",
+          "  [yellow]run[/] [green]-j[/] [cyan]script1.py task.c job.sh[/]",
+          "",
+          "[#] Run a script, but terminate it if it takes longer than 5 seconds:",
+          "  [yellow]run[/] [green]--limit-time 5[/] [cyan]long_running_task.py[/]"
+        ]
+      }]
+    },
+    {
+        "component": "Panel",
+        "title": "[red]Common Errors & Troubleshooting[/]",
+        "style": "red",
+        "content": [{
+            "component": "Markup",
+            "text": [
+                "  • [bold]\"Compiler 'gcc' not found\":[/] The required compiler for the file type is not installed or not in your PATH.",
+                "  • [bold]\"Compilation Failed!\":[/] The source code contains a syntax error. Run with [cyan]-v[/] to see the compiler's output.",
+                "  • [bold]\"Permission denied\":[/] The script file does not have execute permissions. 'run' handles this for compiled code, but for scripts like [cyan].sh[/], you might need to [cyan]chmod +x[/] it first."
+            ]
+        }]
+    }
+  ]
+}

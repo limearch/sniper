@@ -1,0 +1,69 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: file-info - Comprehensive File Analyzer", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]file-info[/] [cyan]<path>[/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About file-info[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A comprehensive tool to display detailed metadata about any file or directory.",
+          "It presents information in a clean, readable, multi-panel format, leveraging",
+          "the 'rich' library for a modern terminal UI."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Features & Information Displayed[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  • [bold]Basic Info:[/] Full path, file type (with description), and size.",
+          "  • [bold]Recursive Size:[/] For directories, it calculates the total size of all contents.",
+          "  • [bold]Timestamps:[/] Last Modified, Last Accessed, and Created/Metadata Changed.",
+          "  • [bold]Permissions:[/] Octal, Symbolic (e.g., rwxr-xr-x), Owner, and Group.",
+          "  • [bold]File Hashes:[/] MD5, SHA1, and SHA256 checksums (for files only)."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Get a detailed report for a single file:",
+          "  [yellow]file-info[/] [cyan]/path/to/my_archive.zip[/]",
+          "",
+          "[#] Get a report for a directory (size will be calculated recursively):",
+          "  [yellow]file-info[/] [cyan]~/Downloads/[/]",
+          "",
+          "[#] Analyze an executable to see its permissions and hashes:",
+          "  [yellow]file-info[/] [cyan]/usr/local/bin/sniper-init[/]"
+        ]
+      }]
+    },
+    {
+        "component": "Panel",
+        "title": "[red]Common Errors & Troubleshooting[/]",
+        "style": "red",
+        "content": [{
+            "component": "Markup",
+            "text": [
+                "  • [bold]\"Path does not exist\":[/] The file or directory path you provided is incorrect.",
+                "  • [bold]\"Permission denied\":[/] You do not have the necessary permissions to read the file or scan the directory.",
+                "  • [bold]Slow on large directories?:[/] The tool recursively calculates the total size, which can take time for directories with many files."
+            ]
+        }]
+    }
+  ]
+}

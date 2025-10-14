@@ -1,0 +1,79 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [
+        {
+          "component": "Text",
+          "text": "SNIPER: view-source - Source Code Viewer",
+          "style": "bold magenta",
+          "justify": "center"
+        }
+      ]
+    },
+    {
+      "component": "Text",
+      "text": "[bold]Usage:[/] [yellow]view-source[/] [cyan]<FILE_PATH>[/] [green][OPTIONS][/]",
+      "justify": "center"
+    },
+    {
+      "component": "Panel",
+      "title": "[blue]Details[/]",
+      "style": "blue",
+      "content": [
+        {
+          "component": "Markup",
+          "text": [
+            "[bold]Description:[/b]",
+            "  A robust, feature-rich source code viewer with syntax highlighting.",
+            "  It intelligently detects file types and supports multiple color themes.",
+            "",
+            "[bold]Arguments:[/b]",
+            "  [cyan]<FILE_PATH>[/]            The source file to display.",
+            "",
+            "[bold]Options:[/b]",
+            "  [green]-t, --theme <THEME>[/]     Set a color theme for syntax highlighting.",
+            "  [green]-n, --no-lines[/]        Disable line numbers.",
+            "  [green]-w, --no-wrap[/]         Disable word wrapping for long lines.",
+            "  [green]-h, --help[/]            Show this help message."
+          ]
+        }
+      ]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Configuration[/]",
+      "style": "cyan",
+      "content": [
+        {
+          "component": "Markup",
+          "text": [
+            "[green]--list-themes[/]          List all available color themes.",
+            "[green]--set-default-theme <T>[/] Set and save a new default theme in [dim]sniper-config.json[/]."
+          ]
+        }
+      ]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]Examples[/]",
+      "style": "green",
+      "content": [
+        {
+          "component": "Markup",
+          "text": [
+            "[#] View a Python script with the default theme",
+            "  [yellow]view-source[/] [cyan]my_script.py[/]",
+            "",
+            "[#] View a JavaScript file with the 'dracula' theme and no line numbers",
+            "  [yellow]view-source[/] [cyan]main.js[/] [green]-t dracula --no-lines[/]",
+            "",
+            "[#] Set 'solarized-dark' as the new default theme",
+            "  [yellow]view-source[/] [green]--set-default-theme solarized-dark[/]"
+          ]
+        }
+      ]
+    }
+  ]
+}

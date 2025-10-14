@@ -2,3 +2,151 @@
 [2025-10-02 20:12:13] SET: category='user' key='prompt_text' value='Hello Sniper'
 [2025-10-02 21:20:32] SET: category='user' key='prompt_text' value='SNIPER💀CODER'
 [2025-10-07 14:53:31] SET: category='view-source' key='default_theme' value='dracula'
+
+[2025-10-07 14:53:31]- [UPDATES] - SET: category='view-source' key='default_theme' value='dracula'
+[2025-10-09 23:56:26] - [UPDATE] - SET: category='view-source' key='default_theme' value='dracula'
+[2025-10-10 00:00:36] - [WARN] - This is a warning message.
+[2025-10-10 00:00:36] - [ERROR] - This is an error message.
+[2025-10-10 00:02:11] - [WARN] - This is a warning message.
+[2025-10-10 00:02:11] - [ERROR] - This is an error message.
+[2025-10-10 00:02:11] - [UPDATE] - This is an update message.
+[2025-10-10 00:04:04] - [WARN] - This is a warning message.
+[2025-10-10 00:04:04] - [ERROR] - This is an error message.
+[2025-10-10 00:04:04] - [UPDATE] - This is an update message.
+[2025-10-10 00:04:33] - [WARN] - This is a warning message.
+[2025-10-10 00:04:33] - [ERROR] - This is an error message.
+[2025-10-10 00:04:33] - [UPDATE] - This is an update message.
+[2025-10-10 00:04:33] - [CRITICAL] - This is an CRITICAL message.
+[2025-10-10 00:29:18] - [CRITICAL] - The '/data/data/com.termux/files/home/sniper/setup/packages.json' was not found. Cannot proceed.
+[2025-10-10 00:30:16] - [CRITICAL] - The '/data/data/com.termux/files/home/sniper/setup/packages.json' was not found. Cannot proceed.
+[2025-10-10 01:42:03] - [WARN] - This is a warning message.
+[2025-10-10 01:42:03] - [ERROR] - This is an error message.
+[2025-10-10 01:42:03] - [UPDATE] - This is an update message.
+[2025-10-10 01:42:03] - [CRITICAL] - This is an CRITICAL message.
+[2025-10-10 01:43:25] - [WARN] - This is a warning message.
+[2025-10-10 01:43:25] - [ERROR] - This is an error message.
+[2025-10-10 01:43:25] - [UPDATE] - This is an update message.
+[2025-10-10 01:43:25] - [CRITICAL] - This is an CRITICAL message.
+[2025-10-10 01:54:55] - [WARN] - Shutdown signal received. Stopping server.
+[2025-10-10 02:17:28] - [ERROR] - You must specify which ports to scan. Use -p or --top-ports.
+[2025-10-10 02:25:33] - [ERROR] - The file 'hjbk' was not found.
+[2025-10-10 11:51:11] - [UPDATE] - [SNIPER.view-source] - SET: category='view-source' key='default_theme' value='material'
+[2025-10-10 11:52:11] - [UPDATE] - [SNIPER.view-source] - SET: category='view-source' key='default_theme' value='material'
+[2025-10-10 11:57:43] - [WARN] - [self-test] - This is a warning message.
+[2025-10-10 11:57:43] - [ERROR] - [self-test] - This is an error message.
+[2025-10-10 11:57:43] - [UPDATE] - [self-test] - This is an update message.
+[2025-10-10 11:57:43] - [CRITICAL] - [self-test] - This is an CRITICAL message.
+[2025-10-10 14:59:45] - [ERROR] - [SNIPER] - Path 'test_script.s' is not a valid file or directory.
+[2025-10-10 15:02:17] - [WARN] - [SNIPER] - Skipping 'wordlist.txt': No formatter for '.txt'
+[2025-10-10 15:14:12] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-10 15:14:12] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-10 15:14:35] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-10 15:14:35] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-10 15:14:35] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-10 15:22:58] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-10 15:22:58] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-10 15:22:58] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-10 15:24:42] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-10 15:24:42] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-10 15:24:42] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-10 15:25:09] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-10 15:25:09] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-10 15:25:09] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-10 15:38:41] - [WARN] - [SNIPER] - Could not load extensions data: [Errno 2] No such file or directory: '/data/data/com.termux/files/home/sniper/tools/file-info/file_info_tool/data/extensions.json'
+[2025-10-10 15:40:56] - [ERROR] - [SNIPER] - Path 'non_existent_file.txt' does not exist.
+[2025-10-10 16:08:58] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-10 16:08:58] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-10 16:08:58] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-10 17:04:53] - [CRITICAL] - [shell-game] - The game crashed with an unexpected error: addch() returned ERR
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/sniper/tools/shell-game/bin/shell-game", line 43, in <module>
+    Run()
+  File "/data/data/com.termux/files/home/sniper/tools/shell-game/main.py", line 156, in Run
+    selected_index = curses.wrapper(game_manager.menu_screen)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/curses/__init__.py", line 94, in wrapper
+    return func(stdscr, *args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/sniper/tools/shell-game/main.py", line 86, in menu_screen
+    rectangle(stdscr, 0, 0, screen_height - 1, screen_width - 1)
+  File "/data/data/com.termux/files/usr/lib/python3.12/curses/textpad.py", line 16, in rectangle
+    win.addch(lry, lrx, curses.ACS_LRCORNER)
+_curses.error: addch() returned ERR
+[2025-10-10 17:07:52] - [CRITICAL] - [shell-game] - The game crashed with an unexpected error: addch() returned ERR
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/sniper/tools/shell-game/bin/shell-game", line 43, in <module>
+    Run()
+  File "/data/data/com.termux/files/home/sniper/tools/shell-game/main.py", line 157, in Run
+    selected_index = curses.wrapper(game_manager.menu_screen)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/curses/__init__.py", line 94, in wrapper
+    return func(stdscr, *args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/sniper/tools/shell-game/main.py", line 87, in menu_screen
+    rectangle(stdscr, 0, 0, screen_height - 1, screen_width - 1)
+  File "/data/data/com.termux/files/usr/lib/python3.12/curses/textpad.py", line 16, in rectangle
+    win.addch(lry, lrx, curses.ACS_LRCORNER)
+_curses.error: addch() returned ERR
+[2025-10-10 23:21:01] - [ERROR] - [help-renderer] - Help file not found for tool 'fastfind' at: /data/data/com.termux/files/home/sniper/share/readme/fastfind.json
+[2025-10-10 23:44:49] - [ERROR] - [help-renderer] - Help file not found for tool 'compress' at: /data/data/com.termux/files/home/sniper/share/readme/compress.json
+[2025-10-11 00:31:03] - [ERROR] - [help-renderer] - Help file not found for tool 'run' at: /data/data/com.termux/files/home/sniper/share/readme/run.json
+[2025-10-11 00:41:07] - [ERROR] - [help-renderer] - Help file not found for tool 'configer' at: /data/data/com.termux/files/home/sniper/share/readme/configer.json
+[2025-10-11 01:50:25] - [ERROR] - [SNIPER.help_renderer] - An unexpected error occurred during help rendering: name '_HelpRendererInternal' is not defined
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/sniper/lib/help_renderer.py", line 162, in render_help
+    renderer = _HelpRendererInternal()
+               ^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_HelpRendererInternal' is not defined
+[2025-10-11 13:14:40] - [ERROR] - [SNIPER.help_renderer] - An unexpected error occurred during help rendering: name '_HelpRendererInternal' is not defined
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/sniper/lib/help_renderer.py", line 162, in render_help
+    renderer = _HelpRendererInternal()
+               ^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_HelpRendererInternal' is not defined
+[2025-10-11 13:26:35] - [ERROR] - [format] - Help content file not found at: /data/data/com.termux/files/home/sniper/share/readme/format.json
+[2025-10-11 13:31:54] - [ERROR] - [social-dive] - Help file not found at: /data/data/com.termux/files/home/sniper/share/readme/social-dive.json
+[2025-10-11 13:32:22] - [ERROR] - [social-dive] - Help file not found at: /data/data/com.termux/files/home/sniper/share/readme/social-dive.json
+[2025-10-11 14:07:29] - [CRITICAL] - [sniper-crypt] - Could not load core encryption utilities: No module named 'crypt_utils'
+[2025-10-11 14:45:16] - [ERROR] - [sniper-crypt] - Help file not found at: /data/data/com.termux/files/home/sniper/share/readme/sniper-crypt.json
+[2025-10-11 14:53:31] - [ERROR] - [help-renderer] - Help file not found for tool 'py-shroud' at: /data/data/com.termux/files/home/sniper/share/readme/py-shroud.json
+[2025-10-11 14:53:57] - [ERROR] - [help-renderer] - Help file not found for tool 'py-shroud' at: /data/data/com.termux/files/home/sniper/share/readme/py-shroud.json
+[2025-10-11 14:59:16] - [ERROR] - [file-info] - Help content file not found at: /data/data/com.termux/files/home/sniper/share/readme/file-info.json
+[2025-10-11 15:08:43] - [ERROR] - [help-renderer] - Help file not found for tool 'iplookup' at: /data/data/com.termux/files/home/sniper/share/readme/iplookup.json
+[2025-10-11 15:09:52] - [ERROR] - [help-renderer] - Help file not found for tool 'scan' at: /data/data/com.termux/files/home/sniper/share/readme/scan.json
+[2025-10-11 15:54:30] - [ERROR] - [help-renderer] - Help file not found for tool 'lib-installer' at: /data/data/com.termux/files/home/sniper/share/readme/lib-installer.json
+[2025-10-11 15:56:00] - [ERROR] - [lib-installer] - Network error: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))
+[2025-10-11 17:04:26] - [ERROR] - [help-renderer] - Help file not found for tool 'combined' at: /data/data/com.termux/files/home/sniper/share/readme/combined.json
+[2025-10-11 17:09:37] - [ERROR] - [help-renderer] - Help file not found for tool 'site-crafter' at: /data/data/com.termux/files/home/sniper/share/readme/site-crafter.json
+[2025-10-11 17:18:54] - [ERROR] - [help-renderer] - Help file not found for tool 'site-crafter' at: /data/data/com.termux/files/home/sniper/share/readme/site-crafter.json
+[2025-10-11 17:19:03] - [ERROR] - [help-renderer] - Help file not found for tool 'site-crafter' at: /data/data/com.termux/files/home/sniper/share/readme/site-crafter.json
+[2025-10-11 17:20:47] - [ERROR] - [help-renderer] - Help file not found for tool 'net-descover' at: /data/data/com.termux/files/home/sniper/share/readme/net-descover.json
+[2025-10-11 17:21:08] - [ERROR] - [help-renderer] - Help file not found for tool 'net-descover' at: /data/data/com.termux/files/home/sniper/share/readme/net-descover.json
+[2025-10-11 17:21:11] - [ERROR] - [help-renderer] - Help file not found for tool 'site-crafter' at: /data/data/com.termux/files/home/sniper/share/readme/site-crafter.json
+[2025-10-11 18:21:29] - [ERROR] - [view-source] - Help content file not found at: /data/data/com.termux/files/home/sniper/share/readme/view-source.json
+[2025-10-11 23:15:24] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-11 23:15:24] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-11 23:15:24] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-12 14:14:17] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-12 14:14:17] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-12 14:14:17] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-12 14:15:04] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-12 14:15:04] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-12 14:15:04] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-12 14:15:51] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-12 14:15:51] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-12 14:15:51] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-12 14:48:40] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-12 14:48:40] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-12 14:48:40] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-12 14:49:33] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-12 14:49:33] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-12 14:49:33] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-12 15:04:49] - [ERROR] - [SNIPER] - Success Massager 
+[2025-10-12 15:04:49] - [WARN] - [SNIPER] - Success Massager 
+[2025-10-12 15:04:49] - [UPDATE] - [SNIPER] - Success Massager 
+[2025-10-12 22:38:25] - [WARN] - [listen] - Operation cancelled by user.
+[2025-10-12 22:41:19] - [WARN] - [listen] - Operation cancelled by user.
+[2025-10-13 15:12:37] - [ERROR] - [help-renderer] - Help file not found for tool 'help' at: /data/data/com.termux/files/home/sniper/share/readme/help.json
+[2025-10-13 21:12:39] - [ERROR] - [SNIPER.readme] - Help data is missing the required 'layout' key.
+[2025-10-14 07:27:54] - [ERROR] - [readme] - Tool 'rjj' not found.
+[2025-10-14 14:59:10] - [ERROR] - [readme] - Tool '.' not found.

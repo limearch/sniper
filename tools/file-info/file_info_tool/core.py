@@ -1,4 +1,5 @@
-# file_info_tool/core.py
+# File: tools/file-info/file_info_tool/core.py (REFACTORED)
+
 import os
 import sys
 import json
@@ -7,6 +8,21 @@ import stat
 import hashlib
 from pathlib import Path
 
+# --- START: Core Integration ---
+# This module is now imported by the entrypoint, which has already set up the path.
+# We can directly import the environment.
+try:
+    from lib.sniper_env import env
+except ImportError:
+    # This fallback is for scenarios where the module might be tested in isolation.
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not import SNIPER environment.", file=sys.stderr)
+    class DummyLog:
+        def error(self, msg): print(f"[ERROR] {msg}", file=sys.stderr)
+    class DummyEnv:
+        log = DummyLog()
+    env = DummyEnv()
+# --- END: Core Integration ---
+
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -14,7 +30,7 @@ try:
     from rich.table import Table
     from rich.align import Align
 except ImportError:
-    print("Error: The 'rich' library is required. Please run: pip install rich")
+    env.log.critical("The 'rich' library is required. Please run: pip install rich")
     sys.exit(1)
 
 console = Console()
@@ -26,13 +42,15 @@ class FileAnalyzer:
     def _load_extensions(self):
         """Loads extension data from the JSON file."""
         try:
-            # Dynamically find the path to the data file
             data_file_path = Path(__file__).parent / "data" / "extensions.json"
             with open(data_file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            # --- CORE CHANGE: Use logger for warnings ---
+            env.log.warning(f"Could not load extensions data: {e}")
             return {}
 
+    # ... (get_formatted_size, get_permissions, calculate_hashes methods remain unchanged) ...
     def get_formatted_size(self, size_bytes):
         """Converts size in bytes to a human-readable format."""
         if size_bytes is None: return "N/A"
@@ -44,7 +62,7 @@ class FileAnalyzer:
         return f"{size_bytes:.1f} PB"
 
     def get_permissions(self, mode):
-        """Converts stat mode to a human-readable permission string (e.g., 'rwx-r-x--x')."""
+        """Converts stat mode to a human-readable permission string."""
         perms = ""
         perms += "r" if mode & stat.S_IRUSR else "-"
         perms += "w" if mode & stat.S_IWUSR else "-"
@@ -70,11 +88,13 @@ class FileAnalyzer:
         except Exception:
             return None
 
+
     def analyze(self, path_str):
         """Analyzes a file or directory and displays the information."""
         path = Path(path_str)
         if not path.exists():
-            console.print(f"[bold red]Error:[/] Path '{path_str}' does not exist.")
+            # --- CORE CHANGE: Use logger for errors ---
+            env.log.error(f"Path '{path_str}' does not exist.")
             return
 
         try:
@@ -94,7 +114,6 @@ class FileAnalyzer:
             basic_info_table.add_row("Type", "Directory" if is_dir else f"File ({ext_desc})")
             
             if is_dir:
-                # Calculate directory size (can be slow)
                 with console.status("[bold yellow]Calculating directory size...[/]"):
                     dir_size = sum(f.stat().st_size for f in path.glob('**/*') if f.is_file())
                 basic_info_table.add_row("Total Size", self.get_formatted_size(dir_size))
@@ -103,6 +122,7 @@ class FileAnalyzer:
 
             console.print(Panel(basic_info_table, title="[bold cyan]❯ Basic Info[/]", border_style="cyan"))
 
+            # ... (The rest of the 'try' block for displaying panels remains unchanged) ...
             # --- Panel 2: Dates & Times ---
             dates_table = Table(box=None, show_header=False, expand=True)
             dates_table.add_column("Property", style="bold magenta", justify="right", width=20)
@@ -129,7 +149,6 @@ class FileAnalyzer:
                 perms_table.add_row("Owner", f"{owner} (UID: {file_stats.st_uid})")
                 perms_table.add_row("Group", f"{group} (GID: {file_stats.st_gid})")
             except (KeyError, ImportError):
-                # Fallback for systems where pwd/grp is not available (like some Windows setups)
                 perms_table.add_row("Owner UID", str(file_stats.st_uid))
                 perms_table.add_row("Group GID", str(file_stats.st_gid))
 
@@ -150,4 +169,5 @@ class FileAnalyzer:
                     console.print(Panel(hashes_table, title="[bold red]❯ File Hashes[/]", border_style="red"))
 
         except Exception as e:
-            console.print(f"[bold red]An unexpected error occurred: {e}[/bold red]")
+            # --- CORE CHANGE: Use logger for unexpected errors ---
+            env.log.error(f"An unexpected error occurred: {e}", exc_info=True)

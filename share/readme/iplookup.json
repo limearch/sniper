@@ -1,0 +1,66 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: iplookup - GeoIP & Network Information Tool", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]iplookup[/] [cyan]<IP_OR_DOMAIN>[/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About iplookup[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A fast and simple tool to find geolocation and network information for a public",
+          "IP address or domain name. It uses the free tier of the [cyan]ip-api.com[/] service."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Features & Information Displayed[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  • [bold]Geolocation:[/] Country, Region, City, Zip Code, Latitude, Longitude.",
+          "  • [bold]Network Info:[/] ISP (Internet Service Provider), Organization, AS Number.",
+          "  • [bold]Misc:[/] Timezone, IP/Domain Queried."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Look up a domain name:",
+          "  [yellow]iplookup[/] [cyan]google.com[/]",
+          "",
+          "[#] Look up a public IP address:",
+          "  [yellow]iplookup[/] [cyan]1.1.1.1[/]",
+          "",
+          "[#] Find information about your own public IP:",
+          "  [yellow]iplookup[/]"
+        ]
+      }]
+    },
+    {
+        "component": "Panel",
+        "title": "[red]Limitations[/]",
+        "style": "red",
+        "content": [{
+            "component": "Markup",
+            "text": [
+                "  • This tool is for [bold]public IPs[/] only. It will not work for private/local IP addresses (e.g., 192.168.1.1).",
+                "  • The accuracy of geolocation data depends on the service provider and can vary.",
+                "  • Subject to rate limits of the ip-api.com free tier."
+            ]
+        }]
+    }
+  ]
+}

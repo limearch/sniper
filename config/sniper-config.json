@@ -1,7 +1,7 @@
 {
     "user": {
         "prompt_text": "SNIPER\ud83d\udc80CODER",
-        "permissions": "user",
+        "permissions": "root",
         "theme": "dark",
         "shell": "zsh",
         "aliases": {
@@ -15,6 +15,6 @@
         "tools_enabled": true
     },
     "view-source": {
-        "default_theme": "dracula"
+        "default_theme": "material"
     }
 }

@@ -1,159 +1,105 @@
-#!/usr/bin/python3
-import getmac
+#!/usr/bin/env python3
+# File: bin/net-descover (REFACTORED - Complete Code)
+# Description: An all-in-one network discovery tool for the SNIPER toolkit.
+
 import sys
-import nmap
+import argparse
 import socket
 import time
 import json
 import csv
-from requests import get
-from rich import box
-from rich.live import Live
-from rich.table import Table
-from rich.console import Console
-from rich.panel import Panel      # --- NEW IMPORT ---
-from rich.text import Text        # --- NEW IMPORT ---
-from N4Tools.Design import ThreadAnimation, AnimationTools, Animation
-from N4Tools.terminal import terminal
-import argparse
+from pathlib import Path
 
-# Initialize terminal, color, and animation objects
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "net-discover"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    import nmap
+    import getmac
+    import requests
+    from rich import box
+    from rich.table import Table
+    from rich.console import Console
+    # N4Tools is a specific dependency, check for it
+    from N4Tools.Design import ThreadAnimation, Animation
+except ImportError as e:
+    env.log.critical(f"A required library is missing: '{e.name}'. Please run: pip install {e.name}")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
 console = Console()
 AN = Animation()
 
-# --- NEW: Rich Help Screen Function ---
-def show_rich_help():
-    """Displays the custom, rich-formatted help screen for net-discover."""
-    title = Text("SNIPER: net-discover - Network Discovery Tool", style="bold magenta", justify="center")
-    
-    usage = Text.from_markup(
-        "[bold]Usage:[/] [yellow]net-discover[/] [green][OPTIONS][/]"
-    )
-    
-    main_panel_text = """
-[bold]Description:[/b]
-  An all-in-one network discovery tool. It performs a quick scan on
-  the local network to find connected devices, displays your internal
-  and external IP information, and allows exporting the results.
-
-[bold]Operation:[/b]
-  The tool automatically determines your local subnet (e.g., 192.168.1.0/24)
-  and performs a ping scan (-sP) to discover live hosts.
-
-[bold]Options:[/b]
-  [green]-o, --output <filename>[/]   Save the list of discovered devices to a file.
-  [green]-x, --export <format>[/]     Specify export format: 'json' or 'csv' (default: json).
-  [green]-h, --help[/]                 Show this help message and exit.
-"""
-
-    dependencies_text = """
-[bold]Dependencies:[/b]
-  This tool requires several external libraries and tools to be installed:
-  - [cyan]python-nmap[/]: The Nmap scanner wrapper.
-  - [cyan]getmac[/]: For retrieving MAC addresses.
-  - [cyan]requests[/]: For fetching the external IP.
-  - [cyan]rich[/]: For beautiful terminal output.
-  - [cyan]N4Tools[/]: For animations.
-  - [bold red]nmap[/]: The Nmap command-line tool itself must be installed on your system.
-    ([yellow]pkg install nmap[/] on Termux or [yellow]sudo apt-get install nmap[/] on Debian/Ubuntu).
-"""
-
-    examples_text = """
-[bold]Examples:[/b]
-  [#] Run a standard scan and display results on the screen
-  [yellow]net-discover[/]
-
-  [#] Scan the network and save the list of devices to a JSON file
-  [yellow]net-discover[/] [green]-o discovered_devices.json[/]
-
-  [#] Scan and save the results in CSV format
-  [yellow]net-discover[/] [green]-o devices.csv -x csv[/]
-"""
-    
-    console.print(Panel(title, border_style="magenta", padding=(0, 1)))
-    console.print(usage, justify="center")
-    console.print(Panel(Text.from_markup(main_panel_text.strip()), title="Overview", border_style="blue"))
-    console.print(Panel(Text.from_markup(dependencies_text.strip()), title="⚠️ Dependencies", border_style="yellow"))
-    console.print(Panel(Text.from_markup(examples_text.strip()), title="Examples", border_style="green"))
-    sys.exit(0)
-
-# --- Original Core Classes & Functions (Unchanged) ---
-
 class NetworkInfo:
+    """
+    A class to encapsulate network scanning and information gathering.
+    """
     def __init__(self):
         try:
-            self.Nmap = nmap.PortScanner()
+            self.nmap_scanner = nmap.PortScanner()
         except nmap.nmap.PortScannerError:
-            console.print("[bold red]Nmap not found![/bold red] Please install the nmap command-line tool.")
+            env.log.critical("The 'nmap' command-line tool was not found in your PATH.")
+            env.log.critical("Please install it (e.g., 'sudo apt install nmap' or 'pkg install nmap') and try again.")
             sys.exit(1)
-        self.scan_time = None
-        self.hosts = self.get_subnet()
-        self.scan_network()
+            
+        self.scan_time = 0.0
+        self.internal_ip_addr = self._get_internal_ip()
+        self.scan_target = self._get_subnet()
 
-    def get_subnet(self):
-        ip_parts = self.internal_ip.split('.')
-        return '.'.join(ip_parts[:-1]) + '.0/24'
-
-    def scan_network(self):
-        console.print("\n[bold yellow]Scanning the network...[/bold yellow]")
-        start_time = time.time()
-        self.Nmap.scan(hosts=self.hosts, arguments='-sP')
-        self.scan_time = time.time() - start_time
-        console.print(f"\n[bold green]Scan completed in {self.scan_time:.2f} seconds.[/bold green]")
-
-    @property
-    def internal_ip(self):
+    def _get_internal_ip(self) -> str:
+        """Finds the local internal IP address by connecting to an external server."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                 s.connect(("8.8.8.8", 80))
                 return s.getsockname()[0]
         except Exception:
-            console.print("[bold red]Could not determine internal IP. Check network connection.[/bold red]")
+            env.log.error("Could not determine internal IP. Please check your network connection.")
             sys.exit(1)
 
-    @property
-    def external_ip(self):
+    def _get_subnet(self) -> str:
+        """Constructs the subnet range (e.g., 192.168.1.0/24) from the internal IP."""
+        ip_parts = self.internal_ip_addr.split('.')
+        return '.'.join(ip_parts[:-1]) + '.0/24'
+
+    def scan_network(self):
+        """Performs the nmap ping scan on the local subnet."""
+        start_time = time.time()
+        # -sP is a ping scan, which is fast for host discovery.
+        self.nmap_scanner.scan(hosts=self.scan_target, arguments='-sP')
+        self.scan_time = time.time() - start_time
+        env.log.info(f"Scan completed in {self.scan_time:.2f} seconds.")
+
+    def get_external_ip_info(self) -> dict:
+        """Fetches external IP information from ipinfo.io."""
         try:
-            return get('http://ipinfo.io/json').json()
-        except Exception as e:
+            return requests.get('http://ipinfo.io/json', timeout=10).json()
+        except requests.RequestException as e:
+            env.log.warning(f"Could not fetch external IP info: {e}")
             return {"error": str(e)}
 
-    def show_ip_info(self):
-        table = Table(title="[bold magenta]Network IP Information[/bold magenta]", box=box.DOUBLE_EDGE, expand=True)
-        table.add_column("[yellow]Option[/yellow]", justify="center", style="cyan")
-        table.add_column("[yellow]Value[/yellow]", justify="center", style="green")
-        table.add_row("Internal IP", f"[bold cyan]{self.internal_ip}[/bold cyan]")
-        external_info = self.external_ip
-        for key, val in external_info.items():
-            if key not in ['hostname', 'readme']:
-                key = key.replace('ip', 'External IP')
-                table.add_row(f"[bold cyan]{key.capitalize()}[/bold cyan]", f"[bold green]{val}[/bold green]")
-        console.print(table)
-
-    def list_wifi_users(self):
-        table = Table(title="[bold magenta]Connected Wi-Fi Devices[/bold magenta]", box=box.DOUBLE_EDGE, expand=True)
-        table.add_column("[cyan]Device[/cyan]", justify="center")
-        table.add_column("[green]IP Address[/green]", justify="center")
-        table.add_column("[green]MAC Address[/green]", justify="center")
-        devices = self.get_connected_devices()
-        # Use a simple print instead of Live for a static final table
-        for device in devices:
-            table.add_row(
-                f"[bold cyan]{device['device_name']}[/bold cyan]", 
-                f"[bold green]{device['ip']}[/bold green]", 
-                f"[bold yellow]{device['mac'] if device['mac'] else '[red]Unknown[/red]'}[/bold yellow]"
-            )
-        console.print(table)
-        console.print(f"[bold yellow]Total devices found: {len(devices)}[/bold yellow]")
-
-    def get_connected_devices(self):
+    def get_connected_devices(self) -> list:
+        """Parses the nmap scan results to get a list of connected devices."""
         devices = []
-        for ip in self.Nmap.all_hosts():
+        for ip in self.nmap_scanner.all_hosts():
             try:
+                # Attempt a reverse DNS lookup to get the hostname.
                 device_name = socket.getfqdn(ip)
-                device_name = '[red]Unknown[/red]' if device_name == ip else device_name
+                if device_name == ip:
+                    device_name = '[red]Unknown Hostname[/red]'
             except socket.herror:
-                device_name = '[red]Unknown[/red]'
+                device_name = '[red]Unknown Hostname[/red]'
+            
+            # Get the MAC address for the given IP.
             mac = getmac.get_mac_address(ip=ip)
             devices.append({
                 "device_name": device_name,
@@ -162,52 +108,99 @@ class NetworkInfo:
             })
         return devices
 
-    def save_to_file(self, filename, format='json'):
+    def display_results(self):
+        """Renders the gathered information into Rich tables."""
+        
+        # --- IP Information Table ---
+        ip_table = Table(title="[bold magenta]Network IP Information[/bold magenta]", box=box.DOUBLE_EDGE, expand=True)
+        ip_table.add_column("Property", style="bold cyan")
+        ip_table.add_column("Value", style="green")
+        ip_table.add_row("Internal IP", self.internal_ip_addr)
+        
+        external_info = self.get_external_ip_info()
+        for key, val in external_info.items():
+            if key not in ['hostname', 'readme', 'error']:
+                display_key = key.replace('ip', 'External IP').capitalize()
+                ip_table.add_row(display_key, str(val))
+        console.print(ip_table)
+
+        # --- Connected Devices Table ---
         devices = self.get_connected_devices()
-        if format == 'json':
-            with open(filename, 'w') as f:
-                json.dump(devices, f, indent=4)
-            console.print(f"[bold green]Results saved to {filename} in JSON format.[/bold green]")
-        elif format == 'csv':
-            with open(filename, 'w', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=["device_name", "ip", "mac"])
-                writer.writeheader()
-                writer.writerows(devices)
-            console.print(f"[bold green]Results saved to {filename} in CSV format.[/bold green]")
+        device_table = Table(title="[bold magenta]Discovered Devices on Network[/bold magenta]", box=box.DOUBLE_EDGE, expand=True)
+        device_table.add_column("Hostname", style="cyan")
+        device_table.add_column("IP Address", style="green")
+        device_table.add_column("MAC Address", style="yellow")
+        
+        for device in devices:
+            device_table.add_row(
+                device['device_name'], 
+                device['ip'], 
+                device['mac']
+            )
+        console.print(device_table)
+        env.log.info(f"Total devices found: {len(devices)}")
 
-text_anim = AnimationTools.set_text_anim('Network scan is in progress...')
-kwargs = {'text': text_anim}
+    def save_to_file(self, filename: str, format_type: str):
+        """Saves the list of discovered devices to a file."""
+        devices = self.get_connected_devices()
+        # We need to clean the rich markup before saving
+        for device in devices:
+            if '[red]' in device['device_name']:
+                device['device_name'] = 'Unknown'
 
-@ThreadAnimation(Animation=AN.Loading, kwargs=kwargs, timer=.15)
-def perform_scan(Thread):
-    return NetworkInfo()
+        env.log.info(f"Exporting {len(devices)} discovered devices to '{filename}'...")
+        try:
+            if format_type == 'json':
+                with open(filename, 'w', encoding='utf-8') as f:
+                    json.dump(devices, f, indent=4)
+            elif format_type == 'csv':
+                with open(filename, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=["device_name", "ip", "mac"])
+                    writer.writeheader()
+                    writer.writerows(devices)
+            
+            env.log.info(f"Results successfully exported.")
+        except IOError as e:
+            env.log.error(f"Failed to write to file '{filename}': {e}")
 
-def parse_args():
-    # --- MODIFIED: Argument Parser Setup ---
-    parser = argparse.ArgumentParser(
-        prog="net-discover",
-        description="Network scanning tool.",
-        add_help=False # Disable default help
-    )
-    # --- NEW: Manual help argument ---
-    parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit.")
-    
-    # --- Original Arguments (Unchanged) ---
-    parser.add_argument('-o', '--output', type=str, help="Save scan results to a file (specify the filename)")
-    parser.add_argument('-x', '--export', choices=['json', 'csv'], default='json', help="Specify export format (json or csv)")
-    return parser.parse_args()
 
-if __name__ == '__main__':
-    args = parse_args()
+@ThreadAnimation(Animation=AN.Loading, timer=.15)
+def perform_scan(thread):
+    """
+    Wrapper function for the N4Tools animation. This function runs the scan
+    and is executed in a separate thread by the decorator.
+    """
+    network_info = NetworkInfo()
+    network_info.scan_network()
+    return network_info
 
-    # --- NEW: Help screen trigger ---
-    # Show help if -h is passed
+
+def main():
+    """Main entry point, argument parsing, and workflow orchestration."""
+    parser = argparse.ArgumentParser(prog="net-discover", add_help=False)
+    parser.add_argument('-o', '--output', help="Save scan results to a file (e.g., devices.json).")
+    parser.add_argument('-x', '--export', choices=['json', 'csv'], default='json', help="Specify export format (json or csv).")
+    parser.add_argument("-h", "--help", action="store_true")
+    args = parser.parse_args()
+
     if args.help:
-        show_rich_help()
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "net-descover"], capture_output=False)
+        return
 
-    # --- Original execution logic (Unchanged) ---
+    # Run the animated scan
     network_info = perform_scan()
-    network_info.show_ip_info()
-    network_info.list_wifi_users()
+    
+    # Display the results
+    network_info.display_results()
+
+    # Save to file if requested
     if args.output:
         network_info.save_to_file(args.output, args.export)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print() # Move to a new line after the animation
+        env.log.warning("Operation cancelled by user.")
+        sys.exit(130)

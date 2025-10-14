@@ -1,105 +1,57 @@
-// File: config.c
+/**
+ * @file config.c
+ * @brief Implements the core logic for the configer tool (get, set, delete)
+ *        using the cJSON library.
+ */
+
+#include "config.h"
+#include "sniper_c_utils.h" // For logging
+#include "cJSON.h"          // For JSON manipulation
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <libgen.h> // Required for dirname()
-#include <unistd.h> // Required for readlink()
-#include "cJSON.h"
-#include "config.h"
 
-// تعريفات الألوان
-#define C_RED "\x1B[31m"
-#define C_GREEN "\x1B[32m"
-#define C_YELLOW "\x1B[33m"
-#define C_BLUE "\x1B[34m"
-#define C_WHITE "\x1B[37m"
-#define C_RESET "\x1B[0m"
-#define C_BOLD "\x1B[1m"
-
-// --- NEW Hybrid Help Function ---
-void print_help(const char* prog_name) {
-    // Check if Python and Rich are available
-    if (system("python3 -c 'import rich' >/dev/null 2>&1") == 0) {
-        char command[1024];
-        char executable_path[1024];
-        char* dir_name;
-        
-        // Find the directory of the currently running C executable
-        ssize_t len = readlink("/proc/self/exe", executable_path, sizeof(executable_path) - 1);
-        if (len != -1) {
-            executable_path[len] = '\0';
-            dir_name = dirname(executable_path);
-            // Assume help_printer.py is in the same directory as the executable
-            snprintf(command, sizeof(command), "python3 %s/help_printer.py %s", dir_name, prog_name);
-            system(command);
-        } else {
-            // Fallback if readlink fails (less reliable, assumes script is in current dir)
-            snprintf(command, sizeof(command), "python3 help_printer.py %s", prog_name);
-            system(command);
-        }
-    } else {
-        // --- Simple Text Fallback Help ---
-        printf("\n%sSniper Config Manager%s - A simple tool to manage JSON configuration.\n", C_BOLD, C_RESET);
-        printf("%sNOTE:%s For a better help screen, please install Python3 and the 'rich' library (pip install rich)\n\n", C_YELLOW, C_RESET);
-        
-        printf("%sUSAGE:\n%s", C_YELLOW, C_RESET);
-        printf("  %s <command> [category] [key] [value]\n\n", prog_name);
-        
-        printf("%sCOMMANDS:\n%s", C_YELLOW, C_RESET);
-        printf("  %s%-10s%s <category> <key> <value>    Set or update a configuration value.\n", C_GREEN, "set", C_RESET);
-        printf("  %s%-10s%s <category> <key>            Retrieve a specific value.\n", C_GREEN, "get", C_RESET);
-        printf("  %s%-10s%s <category> <key>            Delete a key-value pair.\n", C_GREEN, "delete", C_RESET);
-        printf("  %s%-10s%s                            Show this help message.\n\n", C_GREEN, "help", C_RESET);
-        
-        printf("%sEXAMPLE:\n%s", C_YELLOW, C_RESET);
-        printf("  %s set user prompt_text \"Hello Sniper\"\n", prog_name);
-    }
-}
-
-void log_change(const char *base_path, const char *action, const char *category, const char *key, const char *value) {
-    char log_filepath[1024];
-    snprintf(log_filepath, sizeof(log_filepath), "%s/sniper-config.log", base_path);
-
-    FILE *log_file = fopen(log_filepath, "a");
-    if (!log_file) {
-        return; // Silent fail
-    }
-
-    time_t now = time(NULL);
-    char time_str[20];
-    strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", localtime(&now));
-
-    if (strcmp(action, "SET") == 0 && value) {
-        fprintf(log_file, "[%s] SET: category='%s' key='%s' value='%s'\n", time_str, category, key, value);
-    } else if (strcmp(action, "DELETE") == 0) {
-        fprintf(log_file, "[%s] DELETE: category='%s' key='%s'\n", time_str, category, key);
-    }
-
-    fclose(log_file);
-}
-
-char* read_file(const char *filename) {
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        return NULL;
-    }
+/**
+ * @brief Reads the entire content of a file into a dynamically allocated string.
+ * @param filename The path to the file.
+ * @return A heap-allocated string with the file content, or NULL on failure. Caller must free.
+ */
+static char* read_file(const char *filename) {
+    FILE *file = fopen(filename, "rb");
+    if (!file) return NULL;
+    
     fseek(file, 0, SEEK_END);
     long length = ftell(file);
     fseek(file, 0, SEEK_SET);
+    
     char *content = malloc(length + 1);
-    if (!content) { fclose(file); return NULL; }
-    size_t read_len = fread(content, 1, length, file);
-    content[read_len] = '\0';
+    if (!content) {
+        fclose(file);
+        return NULL;
+    }
+    
+    if (fread(content, 1, length, file) != (size_t)length) {
+        free(content);
+        fclose(file);
+        return NULL;
+    }
+
+    content[length] = '\0';
     fclose(file);
     return content;
 }
 
-int write_file(const char *filename, const char *data) {
+/**
+ * @brief Writes data to a file, overwriting its content.
+ * @param filename The path to the file.
+ * @param data The string data to write.
+ * @return 0 on success, 1 on failure.
+ */
+static int write_file(const char *filename, const char *data) {
     FILE *file = fopen(filename, "w");
     if (!file) {
-        fprintf(stderr, C_RED "✖ Error:" C_WHITE " Could not write to file %s.\n" C_RESET, filename);
+        sniper_log(LOG_ERROR, "configer", "Could not write to file %s.", filename);
         return 1;
     }
     fputs(data, file);
@@ -107,116 +59,117 @@ int write_file(const char *filename, const char *data) {
     return 0;
 }
 
-int set_value(const char *filepath, const char *base_path, const char *category, const char *key, const char *value) {
+int set_value(const char *filepath, const char *category, const char *key, const char *value) {
     char *data = read_file(filepath);
-    cJSON *json = NULL;
+    // If file doesn't exist, create an empty JSON object. Otherwise, parse it.
+    cJSON *json = data ? cJSON_Parse(data) : cJSON_CreateObject();
+    if (data) free(data);
 
-    if (data) {
-        json = cJSON_Parse(data);
-        free(data);
-    }
-    
     if (!json) {
-        json = cJSON_CreateObject();
+        sniper_log(LOG_ERROR, "configer", "Failed to parse JSON. Check file format at: %s", filepath);
+        return 1;
     }
 
-    cJSON *cat = cJSON_GetObjectItem(json, category);
-    if (!cat) {
-        cat = cJSON_CreateObject();
-        cJSON_AddItemToObject(json, category, cat);
+    cJSON *cat = cJSON_GetObjectItemCaseSensitive(json, category);
+    if (!cJSON_IsObject(cat)) { // If category doesn't exist or is not an object, create it.
+        cat = cJSON_AddObjectToObject(json, category);
     }
-
-    cJSON_ReplaceItemInObject(cat, key, cJSON_CreateString(value));
     
-    char *out = cJSON_Print(json);
+    // Check if the key already exists to replace it, otherwise add a new one.
+    cJSON* existing_item = cJSON_GetObjectItemCaseSensitive(cat, key);
+    if (existing_item) {
+        cJSON_ReplaceItemInObject(cat, key, cJSON_CreateString(value));
+    } else {
+        cJSON_AddItemToObject(cat, key, cJSON_CreateString(value));
+    }
+    
+    char *out = cJSON_Print(json); // Get formatted JSON string
+    cJSON_Delete(json);
+
     if (!out) {
-        fprintf(stderr, C_RED "✖ Error:" C_WHITE " Failed to generate JSON string.\n" C_RESET);
-        cJSON_Delete(json);
+        sniper_log(LOG_ERROR, "configer", "Failed to generate JSON string for writing.");
         return 1;
     }
 
     int result = write_file(filepath, out);
     if (result == 0) {
-        log_change(base_path, "SET", category, key, value);
+        // Log the change using the central library function
+        sniper_log_config_update("SET", category, key, value, "configer");
     }
     
     free(out);
-    cJSON_Delete(json);
     return result;
 }
 
 int get_value(const char *filepath, const char *category, const char *key) {
     char *data = read_file(filepath);
     if (!data) {
-        fprintf(stderr, C_RED "✖ Error:" C_WHITE " Configuration file not found at %s.\n" C_RESET, filepath);
-        fprintf(stderr, C_YELLOW "  Tip:" C_WHITE " Create it by running a 'set' command first.\n" C_RESET);
+        sniper_log(LOG_ERROR, "configer", "Config file not found at: %s", filepath);
         return 1;
     }
 
     cJSON *json = cJSON_Parse(data);
+    free(data);
     if (!json) {
-        fprintf(stderr, C_RED "✖ Error:" C_WHITE " Failed to parse JSON. Check the file format.\n" C_RESET);
-        free(data);
+        sniper_log(LOG_ERROR, "configer", "Failed to parse JSON. Check file format.");
         return 1;
     }
 
-    cJSON *cat = cJSON_GetObjectItem(json, category);
+    cJSON *cat = cJSON_GetObjectItemCaseSensitive(json, category);
     if (!cat) {
-        printf(C_YELLOW "⚠ Warning:" C_WHITE " Category '%s' not found.\n" C_RESET, category);
+        sniper_log(LOG_WARN, "configer", "Category '%s' not found.", category);
     } else {
-        cJSON *item = cJSON_GetObjectItem(cat, key);
+        cJSON *item = cJSON_GetObjectItemCaseSensitive(cat, key);
         if (item && cJSON_IsString(item)) {
-            printf(C_BLUE "%s\n" C_RESET, item->valuestring);
+            printf("%s\n", item->valuestring); // Print raw value to stdout
+        } else if (item && cJSON_IsNumber(item)) {
+            printf("%g\n", item->valuedouble);
+        } else if (item && cJSON_IsBool(item)) {
+            printf("%s\n", cJSON_IsTrue(item) ? "true" : "false");
         } else {
-            printf(C_YELLOW "⚠ Warning:" C_WHITE " Key '%s' not found in category '%s'.\n" C_RESET, key, category);
+            sniper_log(LOG_WARN, "configer", "Key '%s' not found in category '%s'.", key, category);
         }
     }
 
     cJSON_Delete(json);
-    free(data);
     return 0;
 }
 
-int delete_value(const char *filepath, const char *base_path, const char *category, const char *key) {
+int delete_value(const char *filepath, const char *category, const char *key) {
     char *data = read_file(filepath);
     if (!data) {
-        fprintf(stderr, C_RED "✖ Error:" C_WHITE " Configuration file not found. Nothing to delete.\n" C_RESET);
-        return 1;
+        sniper_log(LOG_WARN, "configer", "Config file not found. Nothing to delete.");
+        return 0; // Not a fatal error
     }
 
     cJSON *json = cJSON_Parse(data);
+    free(data);
     if (!json) {
-        fprintf(stderr, C_RED "✖ Error:" C_WHITE " Failed to parse JSON.\n" C_RESET);
-        free(data);
+        sniper_log(LOG_ERROR, "configer", "Failed to parse JSON.");
         return 1;
     }
 
-    cJSON *cat = cJSON_GetObjectItem(json, category);
+    cJSON *cat = cJSON_GetObjectItemCaseSensitive(json, category);
     if (cat && cJSON_HasObjectItem(cat, key)) {
         cJSON_DeleteItemFromObject(cat, key);
     } else {
-        printf(C_YELLOW "⚠ Warning:" C_WHITE " Key or category not found. Nothing to delete.\n" C_RESET);
+        sniper_log(LOG_WARN, "configer", "Key or category not found. Nothing to delete.");
         cJSON_Delete(json);
-        free(data);
         return 0;
     }
 
     char *out = cJSON_Print(json);
+    cJSON_Delete(json);
     if (!out) {
-        fprintf(stderr, C_RED "✖ Error:" C_WHITE " Failed to generate JSON string for writing.\n" C_RESET);
-        cJSON_Delete(json);
-        free(data);
+        sniper_log(LOG_ERROR, "configer", "Failed to generate JSON string for writing.");
         return 1;
     }
 
     int result = write_file(filepath, out);
     if (result == 0) {
-        log_change(base_path, "DELETE", category, key, NULL);
+        sniper_log_config_update("DELETE", category, key, NULL, "configer");
     }
 
     free(out);
-    cJSON_Delete(json);
-    free(data);
-
     return result;
 }

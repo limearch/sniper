@@ -9,6 +9,14 @@ import shutil
 import importlib.util
 from typing import List, Dict, Any
 
+# --------- import sniper env script ----------
+# import env script
+from lib.sniper_env import env
+# --- Colors for Output (Matching sniper tools) ---
+from lib.sniper_env import Colors
+
+# select a name to be on the logs
+env.log.name = "setup"
 # --- Configuration & Globals ---
 dir_name = os.path.dirname(os.path.abspath(__file__)) 
 PACKAGES_FILE = f"{dir_name}/packages.json"
@@ -20,17 +28,6 @@ PIP_TO_IMPORT_MAP = {
     # Add other mappings here if needed, e.g., "Pillow": "PIL"
 }
 
-# --- Colors for Output (Matching sniper tools) ---
-class Colors:
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[0;33m'
-    BLUE = '\033[0;36m'
-    MAGENTA = '\033[0;35m'
-    CYAN = '\033[0;36m'
-    GREY = '\033[90m'
-    BOLD = '\033[1m'
-    RESET = '\033[0m'
 
 # --- State Management ---
 SUCCESS_COUNT = 0
@@ -38,15 +35,6 @@ FAIL_COUNT = 0
 TOTAL_OPS = 0
 
 # --- Helper Functions ---
-
-def print_info(message: str):
-    print(f"{Colors.BLUE}[INFO]{Colors.RESET} {message}")
-
-def print_error(message: str):
-    print(f"{Colors.RED}[ERROR]{Colors.RESET} {message}", file=sys.stderr)
-
-def print_warn(message: str):
-    print(f"{Colors.YELLOW}[WARN]{Colors.RESET} {message}")
 
 def print_header():
     print(f"{Colors.MAGENTA}╭───────────────────────────────────────────╮{Colors.RESET}")
@@ -71,23 +59,16 @@ def report_status(action: str, target: str, success: bool, output: str = ""):
                 print(f"    {line}")
             print(f"--- End Output ---{Colors.RESET}")
 
-def get_system_platform() -> str:
-    if 'com.termux' in os.environ.get('PREFIX', ''):
-        return 'termux'
-    if sys.platform.startswith('linux'):
-        if os.path.exists('/etc/debian_version'):
-            return 'debian'
-    return 'unknown'
 
 def load_packages() -> Dict[str, Any]:
     try:
         with open(PACKAGES_FILE, 'r') as f:
             return json.load(f)
     except FileNotFoundError:
-        print_error(f"The '{PACKAGES_FILE}' was not found. Cannot proceed.")
+        env.log.critical(f"The '{PACKAGES_FILE}' was not found. Cannot proceed.")
         sys.exit(1)
     except json.JSONDecodeError:
-        print_error(f"The '{PACKAGES_FILE}' is not a valid JSON file. Please check its syntax.")
+        env.log.error(f"The '{PACKAGES_FILE}' is not a valid JSON file. Please check its syntax.")
         sys.exit(1)
 
 # --- Check Functions ---
@@ -157,7 +138,7 @@ def run_check(packages: Dict, platform: str):
             is_installed = check_system_package(pkg)
             report_status("Check system package", pkg, is_installed)
     else:
-        print_warn(f"No system packages defined for platform '{platform}'. Skipping.")
+        env.log.warning(f"No system packages defined for platform '{platform}'. Skipping.")
 
     print_section("Checking Python Libraries (pip)")
     pip_pkgs = packages.get("python", [])
@@ -179,7 +160,8 @@ def run_install(packages: Dict, platform: str):
             success, output = run_command(update_cmd.split())
             report_status("Update package list", platform, success, output)
             if not success:
-                print_warn("Failed to update package lists. Continuing installation anyway...")
+                env.log.name = "setup"
+                env.log.warning("Failed to update package lists. Continuing installation anyway...")
 
         for pkg in sys_pkgs:
             if check_system_package(pkg):
@@ -187,7 +169,7 @@ def run_install(packages: Dict, platform: str):
             else:
                 install_system_package(pkg, install_cmd)
     else:
-        print_warn(f"No system packages defined for platform '{platform}'. Skipping.")
+        env.log.warning(f"No system packages defined for platform '{platform}'. Skipping.")
 
     print_section("Installing Python Libraries (pip)")
     pip_pkgs = packages.get("python", [])
@@ -226,12 +208,12 @@ def main():
         if len(sys.argv) > 1 and sys.argv[1].lower() == "check":
             mode = "check"
 
-        platform = get_system_platform()
-        print_info(f"Detected System: {Colors.BOLD}{platform}{Colors.RESET}")
-        print_info(f"Operation Mode: {Colors.BOLD}{mode}{Colors.RESET}")
+        platform = env.PLATFORM
+        env.log.info(f"Detected System:{Colors.WHITE}({Colors.GREEN}{platform}{Colors.WHITE}){Colors.RESET}")
+        env.log.info(f"Operation Mode: {Colors.BOLD}{Colors.WHITE}({Colors.GREEN}{mode}{Colors.WHITE}){Colors.RESET}")
 
         if platform == 'unknown':
-            print_error("Could not determine your operating system. Aborting.")
+            env.log.error("Could not determine your operating system. Aborting.")
             sys.exit(1)
 
         packages = load_packages()

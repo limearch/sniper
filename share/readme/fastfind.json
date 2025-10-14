@@ -1,0 +1,141 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: fastfind - High-Performance File Search", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]fastfind[/] [cyan]<directory>[/] [green]-p <regex>[/] [cyan][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About fastfind[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A blazing-fast, multi-threaded file search utility written in C. It is designed",
+          "to be a powerful replacement for traditional 'find' commands, with a focus on",
+          "performance, rich filtering, and flexible output formats."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Primary Options[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [cyan]<directory>[/]             Directory to start searching from (Default: current directory).",
+          "  [green]-p, --pattern <regex>[/]   [bold](Required)[/] POSIX extended regular expression to match filenames."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]Filtering & Matching[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]By Metadata:[/b]",
+          "  [green]-t, --type <f|d|l>[/]        Filter by type: [cyan]f[/]ile, [cyan]d[/]irectory, or symbolic [cyan]l[/]ink.",
+          "  [green]--size <[+|-]N[K|M|G]>[/]  Filter by size (e.g., [cyan]+10M[/], [cyan]-1K[/], [cyan]512[/]).",
+          "  [green]--mtime <[+|-]Nd>[/]       Filter by modification time in days (e.g., [cyan]-7d[/], [cyan]+30d[/]).",
+          "  [green]--owner <user>[/]         Filter by file owner username (e.g., 'root').",
+          "  [green]--perms <octal>[/]        Filter by exact octal permissions (e.g., '755').",
+          "",
+          "[bold]By Content & Name:[/b]",
+          "  [green]--content <regex>[/]      Search [bold]inside[/] file contents for a regex match.",
+          "  [green]-e, --ext <extension>[/]     Filter by file extension (e.g., 'py', 'log').",
+          "  [green]-i, --ignore-case[/]        Enable case-insensitive matching for filenames."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]Behavior Control[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-m, --max-depth <N>[/]       Limit search to N levels deep (-1 for unlimited).",
+          "  [green]--exclude <dir>[/]        Exclude a directory by name (can be used multiple times).",
+          "  [green]--no-hidden[/]             [dim](Default)[/] Ignore hidden files and directories (names starting with '.').",
+          "  [green]-s, --show-hidden[/]      Include hidden files and directories in the search.",
+          "  [green]--ignore-vcs[/]            [dim](Default)[/] Automatically ignore files from VCS ignore files (e.g., .gitignore).",
+          "  [green]--no-ignore[/]             Disable all ignore-file logic."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[blue]Actions & Output[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]--exec <cmd>[/]             Execute a command on each result. Use [cyan]{}[/] for the path.",
+          "  [green]--delete[/]                [bold red]Permanently delete[/] found files and directories.",
+          "  [green]--interactive[/]           Prompt for confirmation before each deletion when using [cyan]--delete[/].",
+          "",
+          "[bold]Output Formatting:[/b]",
+          "  [green]-l, --long-listing[/]       Use a detailed, 'ls -l' like listing format.",
+          "  [green]--with-line-number[/]    Show line numbers when using [cyan]--content[/].",
+          "  [green]--format <text|json|csv>[/] Change the output format (default: text).",
+          "  [green]-o, --output <file>[/]       Write output to a file instead of stdout."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]Performance & General[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]--threads <N>[/]            Set the number of worker threads (default: number of CPU cores).",
+          "  [green]-v, --version[/]            Show the tool's version number.",
+          "  [green]-h, --help[/]               Show this help message."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]💡 Examples[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Find all Python files modified in the last 7 days, larger than 1KB:",
+          "  [yellow]fastfind[/] [cyan].[/] [green]-p '\\.py$' --mtime -7d --size +1K[/]",
+          "",
+          "[#] Find all images and execute 'convert' on them in parallel:",
+          "  [yellow]fastfind[/] [cyan]~/Pictures[/] [green]-p '\\.(jpg|png)$' -i --exec 'convert {} -quality 80 resized/{}'[/]",
+          "",
+          "[#] Find all log files containing the word 'ERROR' (case-insensitive) and show line numbers:",
+          "  [yellow]fastfind[/] [cyan]/var/log[/] [green]-e log --content 'ERROR' -i --with-line-number[/]",
+          "",
+          "[#] Interactively delete all '.tmp' files in the current directory:",
+          "  [yellow]fastfind[/] [cyan].[/] [green]-p '\\.tmp$' --delete --interactive[/]",
+          "",
+          "[#] Export a CSV list of all directories, excluding 'node_modules':",
+          "  [yellow]fastfind[/] [cyan].[/] [green]-p '.*' -t d --exclude node_modules --format csv -o dirs.csv[/]"
+        ]
+      }]
+    },
+    {
+        "component": "Panel",
+        "title": "[red]Common Errors & Troubleshooting[/]",
+        "style": "red",
+        "content": [{
+            "component": "Markup",
+            "text": [
+                "  • [bold]\"Invalid regex\":[/] Your pattern contains a syntax error. Test it with 'grep -E'.",
+                "  • [bold]\"Permission denied\":[/] The tool does not have read access to a directory. Try running with 'sudo'.",
+                "  • [bold]No output?[/] Check your filters. A combination like [cyan]--size +10M -t d[/] won't work because directories have a small size on disk."
+            ]
+        }]
+    }
+  ]
+}

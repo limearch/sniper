@@ -74,6 +74,16 @@ run_build() {
         exit 1
     fi
 
+	local c_utils_dir="lib/c_utils"
+	    if [ -d "$c_utils_dir" ]; then
+	        print_info "Building central C utility library (libsniper_c_utils.a)..."
+	        (cd "$c_utils_dir" && make clean && make)
+	        if [ $? -ne 0 ]; then
+	            print_error "Failed to build the central C utility library. Aborting build."
+	            exit 1
+	        fi
+	        print_success "Central C library built successfully."
+	    fi
     # --- START: New logic to ensure 'bin/' directories exist ---
     print_info "Ensuring output 'bin/' directories exist for all tools..."
     local tools_dir="tools" # Assuming tools are in a 'tools/' directory.

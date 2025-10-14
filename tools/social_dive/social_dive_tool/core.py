@@ -1,19 +1,35 @@
-# social_dive_tool/core.py
+# File: tools/social_dive/social_dive_tool/core.py (REFACTORED)
+
+import sys
 import json
 import requests
 import csv
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# --- START: Core Integration ---
+# This module is now imported by the entrypoint, which has already set up the path.
+# We can directly import the environment.
+try:
+    from lib.sniper_env import env
+except ImportError:
+    # Fallback for isolated testing
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not import SNIPER environment.", file=sys.stderr)
+    class DummyLog:
+        def error(self, msg): print(f"[ERROR] {msg}", file=sys.stderr)
+        def warning(self, msg): print(f"[WARN] {msg}", file=sys.stderr)
+        def info(self, msg): print(f"[INFO] {msg}", file=sys.stderr)
+    class DummyEnv:
+        log = DummyLog()
+    env = DummyEnv()
+# --- END: Core Integration ---
+
 try:
     from rich.console import Console
-    from rich.live import Live
-    from rich.table import Table
     from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
 except ImportError:
-    # utils.py should have already handled this, but as a safeguard.
-    print("Error: The 'rich' library is required. Please run: pip install rich")
-    exit(1)
+    env.log.critical("The 'rich' library is required. Please run: pip install rich")
+    sys.exit(1)
 
 console = Console()
 HEADERS = {
@@ -34,19 +50,23 @@ def load_data(category_filter=None):
                 if info.get("category", "").lower() == category_lower
             }
             if not filtered_data:
-                console.print(f"[bold yellow][!] No sites found for category '{category_filter}'. Exiting.[/]")
-                exit()
+                # --- CORE CHANGE: Use logger for warnings ---
+                env.log.warning(f"No sites found for category '{category_filter}'. Exiting.")
+                sys.exit(0) # Exit gracefully
             return filtered_data
         return data
     except FileNotFoundError:
-        console.print("[bold red][-] Error: data.json not found![/]")
-        exit(1)
+        # --- CORE CHANGE: Use logger for critical errors ---
+        env.log.critical("data.json not found! The tool cannot function without it.")
+        sys.exit(1)
     except json.JSONDecodeError:
-        console.print("[bold red][-] Error: Could not decode data.json. Check for syntax errors.[/]")
-        exit(1)
+        env.log.critical("Could not decode data.json. Check for syntax errors.")
+        sys.exit(1)
 
 def check_username(site_name, site_info, username, timeout, proxy):
     """Checks for a username on a single site."""
+    # This function's logic remains unchanged. It is performance-critical and
+    # should not have I/O (like logging) inside it.
     url = site_info['url'].replace('%s', username)
     proxies = {'http': proxy, 'https': proxy} if proxy else None
     
@@ -62,11 +82,9 @@ def check_username(site_name, site_info, username, timeout, proxy):
             return site_name, url
             
     except requests.exceptions.RequestException:
-        # Silently ignore connection/timeout errors, they are common.
-        pass
+        pass # Silently ignore connection/timeout errors.
     except Exception:
-        # Silently ignore other unexpected errors during a scan.
-        pass
+        pass # Silently ignore other unexpected errors.
         
     return None, None
 
@@ -75,10 +93,10 @@ def export_results(filename, found_accounts):
     sorted_accounts = sorted(found_accounts, key=lambda x: x['name'])
     
     if not sorted_accounts:
-        console.print("[bold yellow][!] No accounts found to export.[/]")
+        env.log.warning("No accounts found to export.")
         return
 
-    console.print(f"\n[cyan][*] Exporting {len(sorted_accounts)} found accounts to [bold]{filename}[/]...[/]")
+    env.log.info(f"Exporting {len(sorted_accounts)} found accounts to '{filename}'...")
     
     try:
         if filename.endswith('.txt'):
@@ -93,20 +111,22 @@ def export_results(filename, found_accounts):
             with open(filename, 'w', encoding='utf-8') as f:
                 json.dump(sorted_accounts, f, indent=4)
         else:
-            console.print(f"[bold yellow][!] Unsupported format for '{filename}'. Use .txt, .csv, or .json.[/]"); return
+            env.log.warning(f"Unsupported format for '{filename}'. Use .txt, .csv, or .json.")
+            return
         
-        console.print(f"[bold green][+] Results successfully exported.[/]")
+        # Use console.print for green success message to stand out.
+        console.print(f"[[bold green]+[/]] Results successfully exported.")
     except Exception as e:
-        console.print(f"[bold red][-] Failed to export results: {e}[/]")
+        env.log.error(f"Failed to export results: {e}")
 
 def run_scan(args):
     """Main execution flow: concurrent scanning and result display."""
-    console.print(f"[cyan][*] Searching for username: [bold]{args.username}[/][/]")
+    env.log.info(f"Searching for username: [bold]{args.username}[/]")
     sites_data = load_data(args.category)
     total_sites = len(sites_data)
     found_accounts = []
 
-    # Setup Rich progress bar
+    # The Rich progress bar setup remains unchanged as it's a core UI element.
     progress = Progress(
         SpinnerColumn(),
         "[progress.description]{task.description}",
@@ -130,10 +150,9 @@ def run_scan(args):
                 site_name, url = future.result()
                 if site_name:
                     found_accounts.append({'name': site_name, 'url': url})
-                    # Print found accounts above the progress bar
+                    # We keep console.print here for the immediate visual feedback above the progress bar.
                     console.print(f"[[bold green]+[/]] [bold green]{site_name}:[/] {url}")
                 
-                # Update progress bar with the count of found accounts
                 progress.update(task, advance=1, found_count=len(found_accounts))
     
     console.rule(f"[bold green]Scan Complete[/]", style="green")

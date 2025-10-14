@@ -1,0 +1,95 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: compress - File & Folder Compression Tool", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]compress[/] [green]-d <directory>[/] [green]-o <output_file>[/] [cyan][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About compress[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A versatile C-based compression tool supporting both [bold]ZIP[/] archives (via libzip) and",
+          "various [bold]TAR[/] archive formats (gzip, bzip2, xz). It automatically detects the desired",
+          "TAR format from the output filename extension."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Required Arguments[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-d, --directory <path>[/]   Directory to compress.",
+          "  [green]-o, --output <file>[/]      Output file name (e.g., archive.zip, backup.tar.gz)."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]ZIP Specific Options (Default Mode)[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-l, --level <0-9>[/]        Compression level (0=none, 9=max). Default is system default.",
+          "  [green]-f, --filter <.ext>[/]      Only include files with this extension (e.g., [cyan].txt[/]).",
+          "  [green]-e, --exclude <.ext>[/]      Exclude files with this extension (e.g., [cyan].log[/]).",
+          "  [green]-H, --skip-hidden[/]        Skip hidden files and folders (names starting with '.').",
+          "  [green]-t, -c, --test[/]         Test the ZIP archive's integrity after creation."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]TAR Specific Options[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-C, --compression <type>[/]  Explicitly set TAR compression type. Not usually needed.",
+          "                         [dim]Choices: [cyan]gzip, bzip2, xz[/]. Auto-detected from filename.[/]"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[blue]General Options[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-v, --verbose[/]            Enable verbose mode to see file processing details.",
+          "  [green]-h, --help[/]               Show this help message and exit."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Create a standard ZIP archive with verbose output:",
+          "  [yellow]compress[/] [green]-d ./my_project -o my_archive.zip -v[/]",
+          "",
+          "[#] Create a ZIP including only .c and .h files with maximum compression:",
+          "  [yellow]compress[/] [green]-d src/ -o source.zip -l 9 -f .c -f .h[/] [dim](Note: use -f multiple times)[/]",
+          "",
+          "[#] Create a compressed TAR archive using bzip2 (auto-detected):",
+          "  [yellow]compress[/] [green]-d project_files -o backup.tar.bz2[/]",
+          "",
+          "[#] Create a ZIP archive and verify its integrity:",
+          "  [yellow]compress[/] [green]-d important_data -o data.zip -t[/]"
+        ]
+      }]
+    }
+  ]
+}

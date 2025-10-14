@@ -1,0 +1,66 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: configer - Configuration Manager", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]configer[/] [green]<COMMAND>[/] [cyan]<category>[.key] <key> [value][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About The Tool[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A fast, C-based utility for managing the central [bold cyan]sniper-config.json[/] file.",
+          "It allows for getting, setting, and deleting nested JSON values directly from the command line."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Commands[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[green]set <category> <key> <value>[/]    Set or update a configuration value.",
+          "[green]get <category> <key>[/]            Retrieve a specific value from the configuration.",
+          "[green]delete <category> <key>[/]         Delete a key-value pair from a category.",
+          "[green]help[/]                             Show this help message."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]Advanced Usage (Nested Values)[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": "You can access nested objects by combining the category and key with a dot. The 'key' argument will then target the key within that nested object."
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Set the default shell for the 'user' category",
+          "  [yellow]configer set user shell zsh[/]",
+          "",
+          "[#] Get the configured Python version from the 'environment' category",
+          "  [yellow]configer get environment python_version[/]",
+          "",
+          "[#] Add a new alias (nested object)",
+          "  [yellow]configer set user.aliases gcm 'git commit -m'[/]",
+          "",
+          "[#] Delete an existing alias",
+          "  [yellow]configer delete user.aliases ll[/]"
+        ]
+      }]
+    }
+  ]
+}

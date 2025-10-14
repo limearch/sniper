@@ -1,97 +1,75 @@
-# social_dive_tool/utils.py
+# File: tools/social_dive/social_dive_tool/utils.py (REFACTORED - Complete Code)
+# Description: This module contains utility functions for the social-dive tool,
+# including the help display and category listing logic.
+
 import json
 from pathlib import Path
 import sys
 
+# --- START: Core SNIPER Environment Integration ---
 try:
-    from rich.console import Console
-    from rich.panel import Panel
-    from rich.text import Text
-except ImportError:
-    print("Error: The 'rich' library is required. Please run: pip install rich")
+    # This path is relative to this file's location: .../tools/social_dive/social_dive_tool/utils.py
+    _PROJECT_ROOT = Path(__file__).resolve().parents[3]
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+
+    # Set the logger name for this specific tool.
+    env.log.name = "social-dive"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize the SNIPER environment.", file=sys.stderr)
     sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
 
-# --- UPDATED: Rich Help Screen Function ---
+
 def show_rich_help():
-    """Displays the custom, rich-formatted help screen for social-dive."""
-    console = Console()
-    title = Text("SNIPER: social-dive - OSINT Username Checker", style="bold magenta", justify="center")
+    """
+    Displays the help screen by loading its UI description from the centralized
+    JSON file and passing it to the central help renderer.
+    """
+    help_file_path = env.ROOT_DIR / "share" / "readme" / "social-dive.json"
     
-    usage = Text.from_markup(
-        "[bold]Usage:[/] [yellow]social-dive[/] [cyan]<USERNAME>[/] [green][OPTIONS][/]"
-    )
-    
-    main_panel_text = """
-[bold]Description:[/b]
-  A fast, multi-threaded OSINT tool that checks for the existence
-  of a specific username across a wide range of websites and social networks.
-
-[bold]Arguments:[/b]
-  [cyan]<USERNAME>[/]           The username to search for.
-
-[bold]Options:[/b]
-  [green]-h, --help[/]             Show this help message and exit.
-  [green]-o, --output <FILE>[/]   Export results to a file (formats: txt, csv, json).
-  [green]-c, --category <CAT>[/]  Search only within a specific category.
-  [green]--list-categories[/]     List all available site categories and exit.
-  [green]-p, --proxy <URL>[/]       Use a proxy for requests (e.g., http://127.0.0.1:8080).
-  [green]-t, --timeout <SEC>[/]     Set request timeout in seconds (default: 10).
-"""
-
-    examples_text = """
-[bold]Examples:[/b]
-  [#] Perform a standard search for a username
-  [yellow]social-dive[/] [cyan]johndoe[/]
-
-  [#] Search only in 'Gaming' sites and save results to a CSV file
-  [yellow]social-dive[/] [cyan]mastergamer[/] [green]-c Gaming -o results.csv[/]
-
-  [#] List all searchable categories
-  [yellow]social-dive[/] [green]--list-categories[/]
-"""
-
-    # --- NEW: Disclaimer / False Positives Section ---
-    disclaimer_text = """
-[bold]Important Note on Accuracy:[/b]
-  This tool checks for usernames based on server responses (like status
-  codes or page content). However, many modern websites no longer
-  provide clear "not found" errors to protect user privacy.
-
-  Instead, they might redirect to a homepage or show a generic page,
-  which can be misinterpreted by the tool as a valid user profile.
-
-  [bold yellow]⚠️ Be Aware:[/] This can lead to [bold]"False Positives"[/] (reporting a
-  profile that doesn't actually exist). Always manually verify the links
-  for important results. This is an inherent limitation of automated
-  username checking tools.
-"""
-
-    dependencies_text = """
-[bold]Dependencies:[/b]
-  - [cyan]requests[/]: For making HTTP requests.
-  - [cyan]rich[/]: For displaying beautiful output.
-"""
-    
-    console.print(Panel(title, border_style="magenta", padding=(0, 1)))
-    console.print(usage, justify="center")
-    console.print(Panel(Text.from_markup(main_panel_text.strip()), title="Overview & Options", border_style="blue"))
-    console.print(Panel(Text.from_markup(examples_text.strip()), title="Examples", border_style="green"))
-    console.print(Panel(Text.from_markup(dependencies_text.strip()), title="Dependencies", border_style="cyan"))
-    
-    # --- ADDED the new panel here ---
-    console.print(Panel(Text.from_markup(disclaimer_text.strip()), title="[bold yellow]⚠️ Accuracy & False Positives[/]", border_style="yellow"))
-    
+    if not help_file_path.is_file():
+        env.log.error(f"Help file not found at: {help_file_path}")
+        sys.exit(1)
+        
+    try:
+        # Load the JSON data that describes the help screen's layout and content.
+        with open(help_file_path, 'r', encoding='utf-8') as f:
+            help_data = json.load(f)
+            
+        # Call the central renderer with the loaded data object.
+        render_help(help_data)
+        
+    except (json.JSONDecodeError, IOError) as e:
+        # Log any errors that occur during file reading or JSON parsing.
+        env.log.error(f"Failed to load or parse help file '{help_file_path}': {e}")
+        sys.exit(1)
+        
+    # Exit successfully after displaying the help message.
     sys.exit(0)
 
 
 def get_categories():
-    """Reads data.json and returns a set of unique, sorted site categories."""
+    """
+    Reads the 'data.json' file to find and return all unique site categories.
+    
+    Returns:
+        A sorted list of category names (strings).
+    """
     try:
+        # Construct the path to data.json relative to this file's location.
         data_file_path = Path(__file__).parent / "data.json"
         with open(data_file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
+        # Use a set to automatically handle uniqueness, then convert to a sorted list.
         categories = set(info.get("category", "Uncategorized").capitalize() for info in data.values())
         return sorted(list(categories))
     except FileNotFoundError:
-        return ["Error: data.json not found"]
+        env.log.error("The site data file 'data.json' was not found in the tool's directory.")
+        return []
+    except json.JSONDecodeError:
+        env.log.error("Failed to parse 'data.json'. The file may be corrupted.")
+        return []

@@ -1,4 +1,10 @@
-// File: tools/compress/zip_folder.c | Language: C
+/**
+ * @file zip_folder.c
+ * @brief Implements the recursive directory traversal for ZIP compression.
+ */
+
+#include "zip_tool.h"
+#include "sniper_c_utils.h" // For logging
 
 #include <stdio.h>
 #include <string.h>
@@ -6,32 +12,29 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <zip.h>
-#include "zip_tool.h"
+#include <limits.h> // For PATH_MAX
 
-/**
- * @brief Recursively iterates through a folder and adds its contents to a ZIP archive.
- *
- * @param archive The zip archive handle.
- * @param folder_path The current folder being processed.
- * @param base_path The relative path inside the ZIP archive.
- * @param verbose Flag for verbose output.
- * @param skip_hidden Flag to skip hidden files/directories.
- * @param exclude_ext File extension to exclude.
- * @param filter_ext File extension to include exclusively.
- */
-void zip_folder(zip_t *archive, const char *folder_path, const char *base_path, int verbose, int skip_hidden, const char *exclude_ext, const char *filter_ext) {
+void zip_folder(
+    zip_t *archive, 
+    const char *folder_path, 
+    const char *base_path, 
+    bool verbose, 
+    bool skip_hidden, 
+    const char *exclude_ext, 
+    const char *filter_ext
+) {
     DIR *dir = opendir(folder_path);
     if (!dir) {
-        perror("opendir");
+        sniper_log(LOG_WARN, "compress:zip", "Could not open directory: %s", folder_path);
         return;
     }
 
     struct dirent *entry;
-    char full_path[1024];
-    char relative_path[1024];
+    char full_path[PATH_MAX];
+    char relative_path[PATH_MAX];
 
     while ((entry = readdir(dir)) != NULL) {
-        // Skip '.' and '..' directories
+        // Skip '.' and '..' pseudo-directories
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
@@ -42,39 +45,48 @@ void zip_folder(zip_t *archive, const char *folder_path, const char *base_path, 
         }
 
         snprintf(full_path, sizeof(full_path), "%s/%s", folder_path, entry->d_name);
-        // Create the relative path for the file inside the zip
+        
+        // Create the relative path for the entry inside the zip archive.
+        // This ensures the archive doesn't contain the absolute path.
         if (strlen(base_path) > 0) {
             snprintf(relative_path, sizeof(relative_path), "%s/%s", base_path, entry->d_name);
         } else {
-            strcpy(relative_path, entry->d_name);
+            // For the root level, the relative path is just the filename.
+            strncpy(relative_path, entry->d_name, sizeof(relative_path) -1);
+            relative_path[sizeof(relative_path)-1] = '\0';
         }
 
         struct stat statbuf;
         if (stat(full_path, &statbuf) == 0) {
             if (S_ISDIR(statbuf.st_mode)) {
-                // If it's a directory, add an entry for it and recurse
+                // If it's a directory, add an entry for it in the archive and then recurse into it.
                 zip_dir_add(archive, relative_path, ZIP_FL_ENC_UTF_8);
-                // *** THIS IS THE CORRECTED RECURSIVE CALL ***
                 zip_folder(archive, full_path, relative_path, verbose, skip_hidden, exclude_ext, filter_ext);
             } else {
-                // It's a file, check against filters
+                // It's a file, so check it against the filters.
                 if (exclude_ext && exclude_file(entry->d_name, exclude_ext)) {
-                    if (verbose) printf("Excluding: %s\n", relative_path);
+                    if (verbose) sniper_log(LOG_DEBUG, "compress:zip", "Excluding (by ext): %s", relative_path);
                     continue;
                 }
                 if (filter_ext && !filter_file(entry->d_name, filter_ext)) {
-                    if (verbose) printf("Skipping (filter): %s\n", relative_path);
+                    if (verbose) sniper_log(LOG_DEBUG, "compress:zip", "Skipping (filter mismatch): %s", relative_path);
                     continue;
                 }
 
-                // Add file to the archive
+                // Create a zip_source from the file on disk.
                 zip_source_t *source = zip_source_file(archive, full_path, 0, 0);
-                if (source == NULL || zip_file_add(archive, relative_path, source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8) < 0) {
-                    zip_source_free(source);
-                    fprintf(stderr, "Error adding file '%s': %s\n", full_path, zip_strerror(archive));
+                if (source == NULL) {
+                    sniper_log(LOG_ERROR, "compress:zip", "Error creating source for '%s': %s", full_path, zip_strerror(archive));
+                    continue;
+                }
+                
+                // Add the file to the archive using the source.
+                if (zip_file_add(archive, relative_path, source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8) < 0) {
+                    zip_source_free(source); // Must free the source even on failure
+                    sniper_log(LOG_ERROR, "compress:zip", "Error adding file '%s': %s", full_path, zip_strerror(archive));
                 } else {
                     if (verbose) {
-                        printf("Added: %s\n", relative_path);
+                        sniper_log(LOG_DEBUG, "compress:zip", "Added: %s", relative_path);
                     }
                 }
             }
