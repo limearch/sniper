@@ -108,6 +108,22 @@ class SniperEnv:
         self.PLATFORM = self._detect_platform()
         self.log = self._setup_logger()
         self.log.debug("SniperEnv initialized. Project root: %s", self.ROOT_DIR)
+        # Create a dedicated cache directory in the user's home folder.
+        home_dir = Path.home()
+        self.CACHE_DIR = home_dir / ".cache" / "sniper"
+        try:
+            self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            # Fallback to config dir if cache can't be created
+            self.CACHE_DIR = self.CONFIG_DIR
+        # --- END: NEW CACHE DIRECTORY LOGIC ---
+
+        self.LOG_PATH = self.CONFIG_DIR / "sniper-config.log" # Log path remains in config
+        
+        self.PLATFORM = self._detect_platform()
+        self.log = self._setup_logger()
+        self.log.debug("SniperEnv initialized. Cache dir: %s", self.CACHE_DIR)
+        
     def command_exists(self, command: str) -> bool:
         """
         Checks if a command-line tool exists in the system's PATH.

@@ -69,9 +69,14 @@ find_buildable_tools() {
 
 # Dynamically finds all executable scripts (Python, Shell, etc.)
 find_executable_scripts() {
-    # Find files in 'bin/' and any 'tools/*/bin/' that are not compiled binaries
-    find "$BIN_DIR" "$TOOLS_DIR" -type f -path '*/bin/*' ! -name '*.*' -perm /a+x 2>/dev/null
-    find "$BIN_DIR" "$TOOLS_DIR" -type f -name '*.sh' -o -name '*.py'
+    # Find all files within any 'bin' directory, plus any .sh or .py file project-wide.
+    # This is robust and doesn't rely on pre-existing permissions.
+    find "$PROJECT_ROOT" -type f \( \
+        -path "$BIN_DIR/*" -o \
+        -path "$TOOLS_DIR/*/bin/*" -o \
+        -name "*.sh" -o \
+        -name "*.py" \
+    \) 2>/dev/null
 }
 
 # Manages 'make' commands for buildable tools
@@ -205,3 +210,4 @@ print_final_report
 if [ $FAIL_COUNT -ne 0 ]; then
     exit 1
 fi
+

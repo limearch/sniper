@@ -5,22 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-- Comprehensive test suites (`test.sh`) for the `fastfind` and `format` tools to ensure reliability.
-- Added `--watch` and `--parallel` execution modes to the `run` tool for improved development workflows.
-
-### Changed
-- Enhanced the `social-dive` help screen with a detailed disclaimer about potential "False Positives".
-- Upgraded help screens for `run`, `configer`, and `compress` to use a rich, dynamic panel layout.
-
-### Fixed
-- Fixed incorrect `max-depth` logic in `fastfind` that caused it to list files deeper than the specified level.
-- Corrected CSV output in `fastfind` to remove unnecessary quotes around the file type character.
-- Resolved bug in `compress` tool's recursive zip function that caused nested directories to be added incorrectly.
-
-## [1.0.0] - 2024-02-28
+## [0.1.0] - 2024-02-28
 
 This is the first major stable release of the SNIPER toolkit, marking it as feature-complete and ready for general use.
 

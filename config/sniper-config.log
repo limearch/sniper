@@ -150,3 +150,7 @@ NameError: name '_HelpRendererInternal' is not defined
 [2025-10-13 21:12:39] - [ERROR] - [SNIPER.readme] - Help data is missing the required 'layout' key.
 [2025-10-14 07:27:54] - [ERROR] - [readme] - Tool 'rjj' not found.
 [2025-10-14 14:59:10] - [ERROR] - [readme] - Tool '.' not found.
+[2025-10-14 22:21:51] - [ERROR] - [check-update] - Git command failed: git fetch origin
+fatal: unable to access 'https://github.com/limearch/sniper.git/': Could not resolve host: github.com
+
+[2025-10-14 23:03:00] - [ERROR] - [check-update] - Update check failed with an unexpected error: invalid literal for int() with base 10: 'Unknown'

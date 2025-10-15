@@ -142,7 +142,6 @@ change_shell_to_zsh() {
         fi
     fi
 }
-
 install_sniper_function() {
     print_stage "Integrating 'sniper' Command"
     local zshrc_file="$HOME/.zshrc"
@@ -154,7 +153,8 @@ install_sniper_function() {
 
     # Check if the function already exists. If so, remove the old block first.
     if grep -q "# SNIPER_TOOLKIT_FUNCTION" "$zshrc_file" 2>/dev/null; then
-        print_info "Found an existing 'sniper' function. Removing it before adding the new version..."
+        print_info "Found an existing 'sniper' function. Removing it before updating..."
+        # Use a temporary file for sed to be compatible with both GNU and BSD sed
         sed -i.bak '/# SNIPER_TOOLKIT_FUNCTION/,/# END_SNIPER_TOOLKIT_FUNCTION/d' "$zshrc_file"
         print_success "Old function block removed. A backup was created at ${zshrc_file}.bak"
     fi
@@ -162,13 +162,33 @@ install_sniper_function() {
     print_info "Adding/Updating the 'sniper' environment activator in $zshrc_file..."
     
     # Now, append the new, correct version of the function to the end of the file.
+    # This version includes the 'update' and 'check-update' commands,
+    # and the automatic, silent update check.
     cat << EOF >> "$zshrc_file"
 
 # SNIPER_TOOLKIT_FUNCTION (Do not modify)
-# Activates the SNIPER development environment.
+# Activates the SNIPER development environment and handles updates.
 sniper() {
     local SNIPER_ROOT="$sniper_root"
 
+    # --- START: Update Commands ---
+    if [[ "\$1" == "update" ]]; then
+        (cd "\$SNIPER_ROOT" && ./setup/update.sh run)
+        return
+    fi
+    if [[ "\$1" == "check-update" ]]; then
+        # Run the interactive, verbose check
+        (cd "\$SNIPER_ROOT" && python3 setup/check_update.py check-update)
+        return
+    fi
+    # --- END: Update Commands ---
+
+    # --- Automatic, silent update check in the background ---
+    # This runs every time 'sniper' is called to activate the environment.
+    # The script itself handles the timing logic to avoid checking too often.
+    (cd "\$SNIPER_ROOT" && python3 setup/check_update.py &) &>/dev/null
+
+    # --- Original Commands ---
     if [[ "\$1" == "check" ]]; then
         # Special command to check dependencies without activating.
         (cd "\$SNIPER_ROOT" && python3 setup/setup.py check)
@@ -186,8 +206,8 @@ sniper() {
 
 EOF
     print_success "Sniper command integrated successfully."
+    print_info "Please start a new shell session (or run 'source ~/.zshrc') for changes to take effect."
 }
-
 # --- Main Execution ---
 main() {
     print_header
