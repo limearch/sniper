@@ -7,9 +7,12 @@ import json
 import subprocess
 import shutil
 import importlib.util
+from pathlib import Path
 from typing import List, Dict, Any
 
 # --------- import sniper env script ----------
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_PROJECT_ROOT))
 # import env script
 from lib.sniper_env import env
 # --- Colors for Output (Matching sniper tools) ---

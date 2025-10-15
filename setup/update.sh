@@ -35,71 +35,110 @@ print_status() {
 }
 
 # --- Main Update Function ---
-
 perform_update() {
     print_stage "Starting SNIPER Update"
-    
-    # Step 1: Verify we are in the project root
+
+    # Step 1: Change to the project root directory
     cd "$PROJECT_ROOT" || {
         echo -e "${C_RED}[✘] Error:${C_RESET} Could not change to project directory: ${PROJECT_ROOT}"
         return 1
     }
 
-    # Step 2: Check for local modifications (Safety First)
-    print_step "Checking for local changes"
-    if [[ -n $(git status --porcelain) ]]; then
-        print_status 1 # Mark step as failed
-        echo -e "${C_RED}[✘] Aborting update:${C_RESET} You have uncommitted local changes."
-        echo -e "    Please commit or stash your changes before updating."
-        echo -e "    ${C_YELLOW}Hint:${C_RESET} Run 'git status' to see the modified files."
+    # --- Step 2: High-Risk User Confirmation ---
+    echo
+    echo -e "${C_YELLOW}${C_BOLD}⚠️ HIGH RISK ACTION ⚠️${C_RESET}"
+    echo -e "This process will permanently overwrite your local files with the latest version from GitHub."
+    echo -e "${C_RED}Any changes you have made since installation will be lost forever.${C_RESET}"
+    echo
+    read -p "  ❯ Do you understand the risk and wish to continue? (yes/no): " -r
+    if [[ ! "$REPLY" =~ ^[Yy][Ee][Ss]$ ]]; then
+        echo -e "\n${C_RED}Update aborted by user.${C_RESET}"
         return 1
     fi
-    print_status 0
+    
+    echo
+    read -p "  ❯ ARE YOU ABSOLUTELY SURE? This cannot be undone. (yes/no): " -r
+    if [[ ! "$REPLY" =~ ^[Yy][Ee][Ss]$ ]]; then
+        echo -e "\n${C_RED}Update aborted by user.${C_RESET}"
+        return 1
+    fi
 
-    # Step 3: Pull the latest updates from the remote repository
-    print_step "Pulling latest updates from GitHub"
-    git_output=$(git pull origin main 2>&1)
-    git_pull_status=$?
-    print_status $git_pull_status
-    if [ $git_pull_status -ne 0 ]; then
-        echo -e "${C_RED}[✘] Error:${C_RESET} 'git pull' failed. Please resolve any issues and try again."
+    # --- Step 3: Optional Backup ---
+    echo
+    echo -e "  ${C_YELLOW}Hint: A backup is highly recommended if you have made any changes.${C_RESET}"
+    read -p "  ❯ Would you like to create a backup of the current state? (yes/no): " -r
+    if [[ "$REPLY" =~ ^[Yy][Ee][Ss]$ ]]; then
+        print_step "Creating backup"
+        
+        # Define backup path: ~/backup/sniper-YYYY-MM-DD_HH-MM-SS
+        local backup_dir="$HOME/backup"
+        local timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+        local current_version=$(awk -F '[][]' '/^## \[/ && !/Unreleased/ {print $2; exit}' CHANGELOG.md)
+        local backup_name="sniper-${current_version:-unknown}-${timestamp}"
+        local backup_path="$backup_dir/$backup_name"
+
+        mkdir -p "$backup_dir"
+        
+        # Using cp instead of tar for simplicity and to avoid tar errors
+        cp -r "$PROJECT_ROOT" "$backup_path"
+        local backup_status=$?
+
+        print_status $backup_status
+        if [ $backup_status -eq 0 ]; then
+            echo -e "    ${C_GREEN}Backup saved to: ${backup_path}${C_RESET}"
+        else
+            echo -e "${C_RED}[✘] Error:${C_RESET} Backup failed. Aborting update to be safe."
+            return 1
+        fi
+    fi
+
+    # --- Step 4: Force Update using Git Reset ---
+    print_stage "Fetching and Applying Updates"
+
+    print_step "Fetching latest version data from GitHub"
+    git fetch origin main >/dev/null 2>&1
+    print_status $?
+
+    print_step "Forcibly resetting local files to match remote"
+    # This command discards all local changes and makes the local branch identical to the remote one.
+    git_output=$(git reset --hard origin/main 2>&1)
+    git_reset_status=$?
+    print_status $git_reset_status
+
+    if [ $git_reset_status -ne 0 ]; then
+        echo -e "${C_RED}[✘] Error:${C_RESET} 'git reset --hard' failed."
         echo -e "    ${C_YELLOW}Git Output:${C_RESET}\n$git_output"
         return 1
     fi
 
-    # Step 4: Rebuild project tools using the dynamic build script
+    # --- Step 5: Rebuild, Update Dependencies, and Cleanup (Same as before) ---
     print_stage "Rebuilding Project & Updating Environment"
-    
+
     print_step "Compiling C/C++ tools and setting permissions"
     ./setup/build build > /dev/null 2>&1
     build_status=$?
     print_status $build_status
     if [ $build_status -ne 0 ]; then
-        echo -e "${C_YELLOW}[!] Warning:${C_RESET} The build script reported errors. Some tools may not work correctly."
-        echo -e "    Run './setup/build' manually to see the full output."
+        echo -e "${C_YELLOW}[!] Warning:${C_RESET} Build script reported errors."
     fi
 
-    # Step 5: Update Python/System dependencies
     print_step "Checking for new dependencies"
     python3 setup/setup.py > /dev/null 2>&1
     setup_status=$?
     print_status $setup_status
     if [ $setup_status -ne 0 ]; then
         echo -e "${C_YELLOW}[!] Warning:${C_RESET} Dependency installation reported errors."
-        echo -e "    Run 'python3 setup/setup.py' manually to see the full output."
     fi
 
-    # Step 6: Reset the update checker by removing the lock file
     print_step "Resetting update checker"
-    rm -f "$PROJECT_ROOT/config/.update_available"
+    rm -f "$HOME/.cache/sniper/.update_available"
     print_status 0
 
-    # Step 7: Display the most recent changes to the user
     echo -e "\n${C_GREEN}✅ ${C_BOLD}SNIPER has been updated successfully!${C_RESET}"
     echo -e "--- ${C_BOLD}Recent Changes${C_RESET} ---"
-    # awk command to print content between the first and second '## [' lines
     awk '/^## \[/{c++; if(c==2) exit} c>=1' CHANGELOG.md | tail -n +2 | sed 's/^/  /g'
 }
+
 
 # --- Main Execution Logic ---
 
