@@ -125,7 +125,8 @@ Ensure you have these essential tools: `git`, `python`, and `pip`.
 2.  **Install All Dependencies And Build:**
     Our smart script (`install.sh`) will automatically detect your system and install everything you need.
     ```bash
-    bash install.sh
+	chmod +x install.sh
+    ./install.sh
     ```
     > **Note:** This will install system packages (like `clang`, `make`, `rustc`) and Python libraries (like `rich`, `cryptography`).
 
