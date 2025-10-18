@@ -16,6 +16,7 @@
 typedef struct {
     char **patterns;
     int count;
+    _Atomic int refcount;
 } ignore_patterns_t;
 
 typedef struct search_config_s {

@@ -122,7 +122,7 @@ def check_updates_silent():
     Handles the automatic, background update check using the CORRECT lock file mechanism.
     """
     config = env.config.get('update', {})
-    check_interval = config.get('check_interval_seconds', 60) # 24 hours
+    check_interval = config.get('check_interval_seconds', 86400) # 24 hours
     
     # --- Correct File Names ---
     update_lock_file = env.CONFIG_DIR / ".update_available"

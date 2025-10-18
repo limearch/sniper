@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # ==============================================================================
-# SNIPER Toolkit - Universal Installer (v1.1 - Idempotent)
+# SNIPER Toolkit - Universal Installer (v1.2 - With Detailed Logging)
 #
-# This script automates the full setup of the SNIPER environment, including:
-# 1. Installing system and Python dependencies via setup.py.
-# 2. Compiling all C-based tools via setup/build .
-# 3. Changing the user's default shell to Zsh.
-# 4. Injecting/Updating the 'sniper' environment activator into .zshrc.
+# This script automates the full setup of the SNIPER environment and logs
+# the entire process to config/.sniper-install.log for easy debugging.
 # ==============================================================================
+
+# --- Log File Configuration ---
+LOG_FILE="config/.sniper-install.log"
 
 # --- Color Definitions ---
 C_RED='\033[0;31m'
@@ -21,7 +21,16 @@ C_GREY='\033[90m'
 C_BOLD='\033[1m'
 C_RESET='\033[0m'
 
-# --- Helper Functions for Output Formatting ---
+# --- Logging Helper Function ---
+# Usage: log_msg "LEVEL" "Message"
+log_msg() {
+    local level="$1"
+    local message="$2"
+    # Append formatted message with timestamp to the log file
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [$level] - $message" >> "$LOG_FILE"
+}
+
+# --- Output Formatting Helper Functions (for console) ---
 print_header() {
     echo -e "${C_MAGENTA}
 ╭───────────────────────────────────────────────────╮
@@ -32,21 +41,25 @@ ${C_RESET}"
 
 print_stage() {
     echo -e "\n${C_BLUE}${C_BOLD}--- [ STAGE: $1 ] ---${C_RESET}"
+    log_msg "INFO" "==================== START STAGE: $1 ===================="
 }
 
 print_success() {
     echo -e "  ${C_GREEN}[✔] Success:${C_RESET} $1"
+    log_msg "SUCCESS" "$1"
 }
 
 print_error() {
     echo -e "  ${C_RED}[✘] Error:${C_RESET} $1" >&2
+    log_msg "ERROR" "$1"
 }
 
 print_info() {
     echo -e "  ${C_CYAN}[i] Info:${C_RESET} $1"
+    log_msg "INFO" "$1"
 }
 
-# --- Core Installation Functions ---
+# --- Core Installation Functions (Modified for Logging) ---
 
 run_setup() {
     print_stage "Installing Dependencies"
@@ -55,17 +68,23 @@ run_setup() {
         exit 1
     fi
     
-    echo -e "${C_GREY}▼▼▼ Running setup.py output ▼▼▼${C_RESET}"
-    python3 setup/setup.py
-    if [ $? -ne 0 ]; then
-        print_error "Dependency installation failed. Please check the errors above."
+    local cmd="python3 setup/setup.py"
+    print_info "Running dependency installer..."
+    log_msg "CMD" "$cmd"
+    
+    echo -e "${C_GREY}▼▼▼ Running setup.py (output also in log file) ▼▼▼${C_RESET}"
+    
+    # Execute and redirect both stdout and stderr to the log file, and also show on screen
+    if ! ($cmd 2>&1 | tee -a "$LOG_FILE"); then
+        echo -e "${C_GREY}▲▲▲ End of setup.py output ▲▲▲${C_RESET}"
+        print_error "Dependency installation failed. Please check the log file for details: $LOG_FILE"
         exit 1
     fi
+    
     echo -e "${C_GREY}▲▲▲ End of setup.py output ▲▲▲${C_RESET}"
     print_success "All dependencies are installed."
 }
 
-# *** MODIFIED FUNCTION TO ENSURE 'bin/' DIRECTORIES EXIST ***
 run_build() {
     print_stage "Building Project Tools"
     local build_script="setup/build"
@@ -73,46 +92,38 @@ run_build() {
         print_error "$build_script not found. Cannot compile tools."
         exit 1
     fi
-
+    
+    # Build central C utility library first
 	local c_utils_dir="lib/c_utils"
-	    if [ -d "$c_utils_dir" ]; then
-	        print_info "Building central C utility library (libsniper_c_utils.a)..."
-	        (cd "$c_utils_dir" && make clean && make)
-	        if [ $? -ne 0 ]; then
-	            print_error "Failed to build the central C utility library. Aborting build."
-	            exit 1
-	        fi
-	        print_success "Central C library built successfully."
-	    fi
-    # --- START: New logic to ensure 'bin/' directories exist ---
+	if [ -d "$c_utils_dir" ]; then
+	    print_info "Building central C utility library (libsniper_c_utils.a)..."
+        local make_cmd="(cd \"$c_utils_dir\" && make clean && make)"
+        log_msg "CMD" "$make_cmd"
+        
+        if ! (eval "$make_cmd" >> "$LOG_FILE" 2>&1); then
+            print_error "Failed to build the central C utility library. Check log for details."
+            exit 1
+        fi
+	    print_success "Central C library built successfully."
+	fi
+
     print_info "Ensuring output 'bin/' directories exist for all tools..."
-    local tools_dir="tools" # Assuming tools are in a 'tools/' directory.
-    if [ -d "$tools_dir" ]; then
-        # Loop through each subdirectory in the tools folder
-        for tool_path in "$tools_dir"/*; do
-            if [ -d "$tool_path" ]; then
-                local bin_dir="$tool_path/bin"
-                # If the bin directory does not exist, create it.
-                if [ ! -d "$bin_dir" ]; then
-                    print_info "Creating missing directory: $bin_dir"
-                    mkdir -p "$bin_dir"
-                fi
-            fi
-        done
-        print_success "All tool 'bin/' directories are confirmed to exist."
-    else
-        # If the main 'tools' directory doesn't exist, just inform the user.
-        print_info "Main tools directory '$tools_dir' not found, skipping 'bin/' directory creation."
-    fi
-    # --- END: New logic ---
+    # This part doesn't produce much output, so we just log it.
+    find tools -mindepth 1 -maxdepth 1 -type d -exec mkdir -p {}/bin \;
+    print_success "All tool 'bin/' directories are confirmed to exist."
 
     chmod +x "$build_script"
-    echo -e "${C_GREY}▼▼▼ Running build output ▼▼▼${C_RESET}"
-    ./"$build_script"
-    if [ $? -ne 0 ]; then
-        print_error "Build process failed. Please check the compilation errors."
+    print_info "Compiling all C/C++ tools..."
+    log_msg "CMD" "./$build_script"
+    
+    echo -e "${C_GREY}▼▼▼ Running build script (output also in log file) ▼▼▼${C_RESET}"
+    
+    if ! (./"$build_script" 2>&1 | tee -a "$LOG_FILE"); then
+        echo -e "${C_GREY}▲▲▲ End of build output ▲▲▲${C_RESET}"
+        print_error "Build process failed. Please check the log file for details: $LOG_FILE"
         exit 1
     fi
+
     echo -e "${C_GREY}▲▲▲ End of build output ▲▲▲${C_RESET}"
     print_success "All tools have been compiled and are ready."
 }
@@ -121,7 +132,7 @@ change_shell_to_zsh() {
     print_stage "Configuring Shell Environment"
     if ! command -v zsh &> /dev/null; then
         print_error "Zsh is not installed. The setup script should have installed it."
-        print_info "Please install it manually ('sudo apt install zsh' or 'pkg install zsh') and re-run."
+        print_info "Please install it manually and re-run."
         exit 1
     fi
 
@@ -132,8 +143,15 @@ change_shell_to_zsh() {
         print_info "Default shell is already Zsh. Skipping change."
     else
         print_info "Changing default shell to Zsh..."
-        chsh -s "$zsh_path"
-        if [ $? -eq 0 ]; then
+        local chsh_cmd="chsh -s \"$zsh_path\""
+        log_msg "CMD" "$chsh_cmd"
+        
+        # Capture output for logging
+        chsh_output=$(chsh -s "$zsh_path" 2>&1)
+        local chsh_status=$?
+
+        log_msg "INFO" "chsh output: $chsh_output"
+        if [ $chsh_status -eq 0 ]; then
             print_success "Default shell changed to Zsh."
             print_info "You may need to log out and log back in for the change to take full effect."
         else
@@ -142,91 +160,104 @@ change_shell_to_zsh() {
         fi
     fi
 }
+
 install_sniper_function() {
     print_stage "Integrating 'sniper' Command"
     local zshrc_file="$HOME/.zshrc"
     local sniper_root
-    sniper_root=$(pwd) # Get the absolute path of the current directory
+    sniper_root=$(pwd)
 
-    # Ensure the .zshrc file exists before trying to modify it.
     touch "$zshrc_file"
+    log_msg "INFO" "Target .zshrc file: $zshrc_file"
 
-    # Check if the function already exists. If so, remove the old block first.
     if grep -q "# SNIPER_TOOLKIT_FUNCTION" "$zshrc_file" 2>/dev/null; then
         print_info "Found an existing 'sniper' function. Removing it before updating..."
         # Use a temporary file for sed to be compatible with both GNU and BSD sed
         sed -i.bak '/# SNIPER_TOOLKIT_FUNCTION/,/# END_SNIPER_TOOLKIT_FUNCTION/d' "$zshrc_file"
-        print_success "Old function block removed. A backup was created at ${zshrc_file}.bak"
+        log_msg "SUCCESS" "Old function block removed from .zshrc. Backup created at ${zshrc_file}.bak"
     fi
 
     print_info "Adding/Updating the 'sniper' environment activator in $zshrc_file..."
     
-    # Now, append the new, correct version of the function to the end of the file.
-    # This version includes the 'update' and 'check-update' commands,
-    # and the automatic, silent update check.
-    cat << EOF >> "$zshrc_file"
+    # The new function block to be added
+    local sniper_function_block
+    read -r -d '' sniper_function_block << EOF
 
 # SNIPER_TOOLKIT_FUNCTION (Do not modify)
 # Activates the SNIPER development environment and handles updates.
 sniper() {
     local SNIPER_ROOT="$sniper_root"
 
-    # --- START: Update Commands ---
+    # --- Update Commands ---
     if [[ "\$1" == "update" ]]; then
         (cd "\$SNIPER_ROOT" && ./setup/update.sh run)
         return
     fi
     if [[ "\$1" == "check-update" ]]; then
-        # Run the interactive, verbose check
         (cd "\$SNIPER_ROOT" && python3 setup/check_update.py check-update)
         return
     fi
-    # --- END: Update Commands ---
 
-    # --- Automatic, silent update check in the background ---
-    # This runs every time 'sniper' is called to activate the environment.
-    # The script itself handles the timing logic to avoid checking too often.
+    # --- Automatic, silent update check ---
     (cd "\$SNIPER_ROOT" && python3 setup/check_update.py &) &>/dev/null
 
     # --- Original Commands ---
     if [[ "\$1" == "check" ]]; then
-        # Special command to check dependencies without activating.
         (cd "\$SNIPER_ROOT" && python3 setup/setup.py check)
     else
-        # The primary function: activate the Python virtual environment.
-        # This modifies the current shell session.
-        if [ -f "\$SNIPER_ROOT/bin/activate" ]; then
-            source "\$SNIPER_ROOT/bin/activate"
+        # Primary function: activate the environment
+        if [ -d "\$SNIPER_ROOT/.venv" ]; then
+            source "\$SNIPER_ROOT/.venv/bin/activate"
         else
-            echo -e "\033[0;31mSniper Error:\033[0m Activation script not found at \$SNIPER_ROOT/bin/activate" >&2
+            echo -e "\033[0;31mSniper Error:\033[0m Virtual environment not found at \$SNIPER_ROOT/.venv" >&2
         fi
     fi
 }
 # END_SNIPER_TOOLKIT_FUNCTION
-
 EOF
+
+    # Append the block to .zshrc and log it
+    echo "$sniper_function_block" >> "$zshrc_file"
+    log_msg "INFO" "Appended new function block to .zshrc."
+    
     print_success "Sniper command integrated successfully."
     print_info "Please start a new shell session (or run 'source ~/.zshrc') for changes to take effect."
 }
+
 # --- Main Execution ---
 main() {
+    # Ensure config directory exists
+    mkdir -p config
+    # Start with a clean log file
+    echo "" > "$LOG_FILE"
+    
+    log_msg "INFO" "SNIPER Toolkit Installation Started"
+    log_msg "INFO" "Installer Version: 1.2"
+    log_msg "INFO" "Timestamp: $(date)"
+    log_msg "INFO" "--------------------------------------"
+    
     print_header
+    
     run_setup
     run_build
     change_shell_to_zsh
     install_sniper_function
 
+    log_msg "INFO" "==================== INSTALLATION COMPLETE ===================="
+    
     echo -e "\n\n${C_GREEN}${C_BOLD}✅ SNIPER Toolkit installation complete!${C_RESET}"
     echo -e "--------------------------------------------------------------------------"
+    echo -e "A detailed installation report has been saved to:${C_YELLOW} $LOG_FILE ${C_RESET}"
     echo -e "To activate the SNIPER environment, please first start a new Zsh session:"
     echo -e "  1. Close and reopen your terminal."
     echo -e "  2. Or run: ${C_YELLOW}zsh${C_RESET}"
     echo ""
     echo -e "Then, simply type the command below to activate the environment:"
     echo -e "  ${C_CYAN}sniper${C_RESET}"
-    echo ""
-    echo -e "After activation, all tools like 'run', 'find', 'dive' will be available."
     echo -e "--------------------------------------------------------------------------"
 }
 
+# Run the main function and handle Ctrl+C
+trap 'echo -e "\n${C_YELLOW}Installation aborted by user.${C_RESET}"; log_msg "WARN" "Installation aborted by user."; exit 1' INT
 main
+trap - INT # Disable trap on normal exit

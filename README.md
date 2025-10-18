@@ -8,12 +8,10 @@
 ███████║██║░╚███║██║██║░░░░░███████╗██║░░██║
 ╚══════╝╚═╝░░╚══╝╚═╝╚═╝░░░░░╚══════╝╚═╝░░╚═╝
 ```
-
 # SNIPER Toolkit
 
 **An integrated command-line arsenal for developers, designed for precision, power, and efficiency.**
-
-<p align="center">
+---
   <!-- Project Info -->
   <img src="https://img.shields.io/badge/Version-1.0.0-blueviolet?style=flat" alt="Version">
   <img src="https://img.shields.io/badge/Status-Stable-brightgreen?style=flat" alt="Status">
@@ -54,9 +52,10 @@
 </p>
 </div>
 
+ 
 ---
 
-**SNIPER** is not just a collection of scripts; it's a complete ecosystem that merges the power of high-performance compiled C utilities with the flexibility of robust Python scripts. It's all wrapped in a unified framework designed to deliver an unparalleled command-line experience.
+**SNIPER** is not just a collection of scripts; it's a complete ecosystem that merges the power of high-performance compiled C/C++ utilities with the flexibility of robust Python scripts. It's all wrapped in a unified framework designed to deliver an unparalleled command-line experience.
 
 ---
 
@@ -68,8 +67,8 @@
     *   [Prerequisites](#prerequisites)
     *   [Installation Steps](#installation-steps)
 4.  [🛠️ Tools Documentation](#️-tools-documentation)
-    *   [Compiled Tools](#compiled-tools)
-    *   [Scripting Tools](#scripting-tools)
+    *   [Compiled Tools (C/C++)](#compiled-tools-cc)
+    *   [Scripting Tools (Python/Shell)](#scripting-tools-pythonshell)
 5.  [🗺️ Project Structure](#️-project-structure)
 6.  [⚙️ Configuration](#️-configuration)
 7.  [🤝 Contributing](#-contributing)
@@ -80,20 +79,22 @@
 ### 🎯 Philosophy and Goals
 
 **SNIPER** is built on the principles of precision, speed, and integration. Our goal is to equip developers with a reliable arsenal of tools that work seamlessly together, focusing on:
-*   **Performance**: Using C for tasks that demand maximum speed.
-*   **Flexibility**: Using Python for tasks requiring API interaction or complex data processing.
+*   **Performance**: Using C/C++ for tasks that demand maximum speed and efficiency.
+*   **Flexibility**: Using Python for tasks requiring API interaction, complex data processing, or rapid development.
 *   **User Experience**: Providing beautiful, consistent, and information-rich command-line interfaces.
 *   **Integration**: A unified build system that makes managing and updating the project simple.
 
 ### ✨ Key Features
 
--   ⚡ **High Performance**: Core utilities written in C (`fastfind`, `compress`, `run`) are designed to leverage multi-threading.
--   🌐 **Multi-Language Support**: The universal `run` tool intelligently compiles (if needed) and executes code from various languages (C, C++, Python, Java, JS, Go, Rust).
--   🎨 **Rich TUI**: Extensive use of the `rich` library to deliver colorful output, tables, progress bars, and beautiful info panels.
--   🔧 **Unified Build System**: A robust `build.sh` script to manage the compilation of C tools and grant executable permissions to all scripts.
+-   ⚡ **High Performance**: Core utilities written in C (`fastfind`, `compress`, `run`) or C++ (`g-pass`) are designed to leverage multi-threading and low-level optimizations.
+-   🌐 **Universal Code Runner**: The `run` tool intelligently compiles (if needed) and executes code from various languages (C, C++, Python, Java, JS, Go, Rust) with performance timing.
+-   🎨 **Rich TUI**: Extensive use of the `rich` library to deliver colorful output, tables, progress bars, and beautiful info panels for a modern CLI experience.
+-   🔧 **Unified Build System**: A robust `install.sh` script to manage system dependencies, compile all C/C++ tools, and set up the shell environment.
 -   🔍 **OSINT Capabilities**: The `social-dive` tool for concurrently checking username existence across dozens of websites.
--   🏗️ **Project Scaffolding**: The `sniper-project-init` tool to interactively and rapidly create new project structures.
--   🔒 **Strong Encryption**: The `sniper-crypt` tool for securely encrypting and decrypting files using AES-256.
+-   🏗️ **Advanced Project Scaffolding**: The `sniper-init` tool to interactively and rapidly create new project structures from dynamic templates.
+-   🔒 **Strong Encryption**: The `sniper-crypt` tool for securely encrypting and decrypting files and folders using AES-256-GCM.
+-   🛡️ **Code Obfuscation**: The `py-shroud` tool to protect Python source code through multi-level obfuscation, including string encryption and name mangling.
+-   ✍️ **Automatic Code Formatting**: The `format` tool to enforce a consistent code style across Python, JSON, Shell, and C/C++ files, with a check mode for CI/CD.
 
 ---
 
@@ -103,15 +104,15 @@ The installation process is designed to be simple on **Linux (Debian/Ubuntu)** a
 
 #### Prerequisites
 
-Ensure you have these essential tools: `git`, `python`, and `pip`.
+Ensure you have these essential tools: `git` and `python`.
 
--   **On Termux:**
-    ```bash
-    pkg install git python
-    ```
 -   **On Debian/Ubuntu:**
     ```bash
-    sudo apt-get install git python3 python3-pip
+    sudo apt-get update && sudo apt-get install -y git python3 python3-pip
+    ```
+-   **On Termux:**
+    ```bash
+    pkg install git python -y
     ```
 
 #### Installation Steps
@@ -122,41 +123,42 @@ Ensure you have these essential tools: `git`, `python`, and `pip`.
     cd sniper
     ```
 
-2.  **Install All Dependencies And Build:**
-    Our smart script (`install.sh`) will automatically detect your system and install everything you need.
+2.  **Run the Universal Installer:**
+    Our smart script (`install.sh`) will automatically detect your system, install all required packages, compile all tools, and set up your shell environment.
     ```bash
-	chmod +x install.sh
+    chmod +x install.sh
     ./install.sh
     ```
-    > **Note:** This will install system packages (like `clang`, `make`, `rustc`) and Python libraries (like `rich`, `cryptography`).
+    > **Note:** This will install system packages (like `clang`, `make`, `rustc`, `zsh`) and Python libraries (like `rich`, `cryptography`, `questionary`). It will also change your default shell to Zsh for full integration.
 
-    > **Note:** This will create the executable files in the respective `bin` directories of each tool.
-
-**✅ Installation complete! The SNIPER arsenal is now ready for use.**
+**✅ Installation complete! Start a new terminal session, then type `sniper` to activate the environment.**
 
 ---
 
 ### 🛠️ Tools Documentation
 
-#### Compiled Tools
+#### Compiled Tools (C/C++)
 
 | Tool | Command | Description | Example Usage |
 | :--- | :--- | :--- | :--- |
-| **Universal Runner** | `run` | An intelligent code runner. It detects the language, compiles if necessary, and executes the code with performance timing. | `run --time my_program.c` |
-| **Fast Find** | `fastfind` | A blazing-fast, multi-threaded file search utility with Regex support and advanced filters. | `fastfind -p '\.py$' --size +10K` |
-| **Compress Tool** | `compress` | A powerful tool to compress directories into `zip` or `tar` (gz, bz2, xz) archives. | `compress -d ./src -o archive.zip -v` |
-| **Config Manager** | `configer` | Manage the central `sniper-config.json` file directly from the command line. | `configer set user theme dark` |
+| **Universal Runner** | `run` | An intelligent code runner. Detects language, compiles if necessary, and executes with performance timing and resource limiting. | `run --time my_program.c` |
+| **Fast Find** | `fastfind` | A blazing-fast, multi-threaded file search utility with Regex support and advanced filters (size, mtime, owner). | `fastfind -p '\.py$' --size +10K` |
+| **Compress Tool** | `compress` | A powerful tool to compress directories into `zip` or various `tar` (gz, bz2, xz) archives. | `compress -d ./src -o archive.zip -v` |
+| **Password Generator** | `g-pass` | Advanced hybrid C++/Python password generator with random, "smart", and high-performance "crunch" modes. | `g-pass --smart "strong wifi pass"` |
+| **Config Manager** | `configer` | A C-based utility to manage the central `sniper-config.json` file directly from the command line. | `configer set user theme dark` |
 | **Size Reporter** | `size` | A simple and fast utility to calculate and display the size of files and directories in a human-readable format. | `size ./large_directory` |
 
-#### Scripting Tools
+#### Scripting Tools (Python/Shell)
 
 | Tool | Command | Description | Example Usage |
 | :--- | :--- | :--- | :--- |
 | **Social Dive** | `social-dive` | An OSINT tool to check for the existence of usernames across dozens of websites concurrently. | `social-dive johndoe --category Gaming` |
-| **Code Formatter** | `format` | An automatic code formatter supporting Python, JSON, Shell, and C/C++. Ideal for standardizing code style. | `format ./my_project -f .py .c --check` |
-| **File Info** | `file-info` | Displays a comprehensive report on any file or directory, including size, permissions, dates, and hashes. | `file-info /path/to/my/file.zip` |
-| **Project Initializer**| `sniper-init` | An interactive tool to create new project structures (Python, Node.js) with a few clicks. | `sniper-init` |
-| **Sniper Crypt** | `sniper-crypt` | A utility for securely encrypting and decrypting files using the AES-256 algorithm. | `sniper-crypt encrypt secret-data.txt` |
+| **Code Formatter** | `format` | An automatic code formatter supporting Python, JSON, Shell, and C/C++. Ideal for standardizing code style. | `format ./my_project --check -p` |
+| **Project Initializer**| `sniper-init` | An interactive tool to create new project structures from dynamic templates (Python, Go, React, etc.). | `sniper-init` |
+| **Sniper Crypt** | `sniper-crypt` | A utility for securely encrypting and decrypting files and folders using AES-256. | `sniper-crypt encrypt secrets.txt -r` |
+| **Python Shroud** | `py-shroud` | Obfuscates Python source code to make it difficult to reverse-engineer, with multiple protection levels. | `py-shroud main.py -o dist.py -l 3` |
+| **File Info** | `file-info` | Displays a comprehensive, multi-panel report on any file or directory, including size, permissions, and hashes. | `file-info /path/to/my/file.zip` |
+| **Shell Game** | `shell-game` | A simple terminal-based snake game for entertainment, built with Python's `curses` library. | `shell-game` |
 
 ---
 
@@ -164,10 +166,11 @@ Ensure you have these essential tools: `git`, `python`, and `pip`.
 
 ```
 sniper/
-├── bin/                 # Main executable scripts and tools
-├── etc/                 # Additional config files and project intro
-├── lib/                 # Shared Python libraries
-├── share/               # Shared resources (e.g., Zsh plugins)
+├── config/              # Central configuration files (sniper-config.json)
+├── etc/                 # Additional scripts (intro animation, on-exit cleanup)
+├── lib/                 # Shared libraries (c_utils for C, sniper_env.py for Python)
+├── setup/               # Installation and build scripts (setup.py, packages.json)
+├── share/               # Shared resources (help content in share/readme/)
 ├── test/                # Test scripts for the tools
 ├── tools/               # Complex sub-tools (each with its own structure)
 │   ├── compress/        # Compress tool (C)
@@ -175,15 +178,15 @@ sniper/
 │   ├── fastfind/        # Fast find tool (C)
 │   ├── file-info/       # File info tool (Python)
 │   ├── format/          # Code formatter tool (Python)
+│   ├── g-pass/          # Password generator (C++/Python)
+│   ├── py-shroud/       # Python obfuscator (C/Python)
 │   ├── run/             # Universal runner (C)
 │   ├── shell-game/      # Snake game (Python)
 │   ├── size/            # Size reporter tool (C)
-│   ├── social_dive/     # OSINT tool (Python)
-│   └── sniper-project-init/ # Project initializer (Python)
-├── build.sh             # Main build script
-├── setup.py             # Dependency installer
-├── packages.json        # List of dependencies
-├── requirements.txt     # Python dependency list (reference)
+│   ├── sniper-crypt/    # Encryption tool (Python)
+│   ├── sniper-project-init/ # Project initializer (Python)
+│   └── social_dive/     # OSINT tool (Python)
+├── install.sh           # Main universal installer
 └── README.md            # This file
 ```
 
@@ -191,7 +194,7 @@ sniper/
 
 ### ⚙️ Configuration
 
-The behavior of the SNIPER environment is controlled by the `sniper-config.json` file. You can edit it directly or use the dedicated `configer` tool.
+The behavior of the SNIPER environment is controlled by the `config/sniper-config.json` file. You can edit it directly or use the dedicated `configer` tool.
 
 **Example: Change the user's default shell**
 ```bash

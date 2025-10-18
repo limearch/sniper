@@ -1,4 +1,4 @@
-// File: src/search.c (FIXED)
+// File: src/search.c (FIXED with refcount for ignore_patterns)
 
 #include "search.h"
 #include <stdlib.h>
@@ -13,6 +13,7 @@
 #include <sys/wait.h>
 #include <ctype.h>
 #include "utils.h"
+#include <stdatomic.h>
 
 #define C_RESET      "\x1B[0m"
 #define C_FILE       ""
@@ -80,6 +81,7 @@ static ignore_patterns_t* load_ignore_file(const char *dir_path) {
     if (!fp) return NULL;
     ignore_patterns_t *p = calloc(1, sizeof(ignore_patterns_t));
     if (!p) { fclose(fp); return NULL; }
+    p->refcount = 1; /* تهيئة عداد المراجع */
     char line[1024];
     while (fgets(line, sizeof(line), fp)) {
         line[strcspn(line, "\n\r")] = 0;
@@ -89,9 +91,24 @@ static ignore_patterns_t* load_ignore_file(const char *dir_path) {
         *(end + 1) = 0;
         
         p->count++;
-        p->patterns = realloc(p->patterns, p->count * sizeof(char*));
-        if (!p->patterns) { free(p); fclose(fp); return NULL; }
+        char **tmp = realloc(p->patterns, p->count * sizeof(char*));
+        if (!tmp) { /* فشل أثناء التوسيع: نظف وانهي */
+            for (int i = 0; i < p->count - 1; i++) free(p->patterns[i]);
+            free(p->patterns);
+            free(p);
+            fclose(fp);
+            return NULL;
+        }
+        p->patterns = tmp;
         p->patterns[p->count - 1] = strdup(line);
+        if (!p->patterns[p->count - 1]) {
+            /* فشل في strdup: نظف وانهي */
+            for (int i = 0; i < p->count - 1; i++) free(p->patterns[i]);
+            free(p->patterns);
+            free(p);
+            fclose(fp);
+            return NULL;
+        }
     }
     fclose(fp);
     return p;
@@ -110,6 +127,12 @@ static int is_ignored(const char *name, ignore_patterns_t *patterns) {
 
 static void free_ignore_patterns(ignore_patterns_t *patterns) {
     if (!patterns) return;
+    /* خفض عداد المراجع: إذا بقيت مراجع لا نفرّغ */
+    int prev = atomic_fetch_sub(&patterns->refcount, 1);
+    if (prev > 1) {
+        return;
+    }
+    /* إذا وصلنا هنا، prev == 1 ولذا refcount صار 0 — حرّر فعليًا */
     for (int i = 0; i < patterns->count; i++) free(patterns->patterns[i]);
     free(patterns->patterns);
     free(patterns);
@@ -117,13 +140,12 @@ static void free_ignore_patterns(ignore_patterns_t *patterns) {
 
 void search_directory(void *arg) {
     search_task_arg_t *task_arg = (search_task_arg_t *)arg;
+    if (!task_arg) return;
     search_config_t *config = task_arg->config;
     char *path = task_arg->path;
     int current_depth = task_arg->current_depth;
 
     // FIX 1: Correct max-depth logic.
-    // Stop processing this directory entirely if we are already deeper than max_depth.
-    // This prevents files like 'subdir/nested.txt' from being listed with '-m 1'.
     if (config->max_depth != -1 && current_depth > config->max_depth) {
         goto cleanup;
     }
@@ -177,20 +199,8 @@ void search_directory(void *arg) {
             is_match = 0;
         }
 
-        // FIX 2: Core logic change for all file-specific filters.
-        // The old code had these checks inside `if (is_file)`, causing non-files
-        // to incorrectly pass the filters. The new logic explicitly fails any
-        // non-file entity if a file-specific filter is active.
-        
-        // This change corrects failures in tests:
-        // - Filter by extension (.txt)
-        // - Filter by size >10K
-        // - Filter by mtime <7d
-        // - Content search inside files
-        // - Write output to file (which had an incorrect count due to this bug)
-
         if (is_match && config->size_filter >= 0) {
-            if (!is_file || // Fail if not a file
+            if (!is_file ||
                 (config->size_op > 0 && sb.st_size <= config->size_filter) ||
                 (config->size_op < 0 && sb.st_size >= config->size_filter) ||
                 (config->size_op == 0 && sb.st_size != config->size_filter)) {
@@ -200,7 +210,7 @@ void search_directory(void *arg) {
         
         if (is_match && config->mtime_filter >= 0) {
             time_t now = time(NULL);
-            if (!is_file || // Technically mtime applies to all, but test expects file-only
+            if (!is_file ||
                 (config->mtime_op < 0 && (now - sb.st_mtime) >= config->mtime_filter) ||
                 (config->mtime_op > 0 && (now - sb.st_mtime) <= config->mtime_filter)) {
                 is_match = 0;
@@ -218,9 +228,6 @@ void search_directory(void *arg) {
                 is_match = 0;
             }
         }
-        
-        // The old `if (is_match && is_file)` block is now removed as its logic
-        // has been integrated above in a more correct way.
 
         if (is_match && config->owner_filter_enabled && sb.st_uid != config->owner_filter) {
             is_match = 0;
@@ -242,10 +249,21 @@ void search_directory(void *arg) {
                 new_task->config = config;
                 new_task->path = strdup(full_path);
                 new_task->current_depth = current_depth + 1;
-                new_task->parent_ignore = local_ignore ? local_ignore : task_arg->parent_ignore;
+                /* مشاركة ignore patterns: نزيد عداد المراجع إذا كنا سنشارك */
+                if (local_ignore) {
+                    new_task->parent_ignore = local_ignore;
+                    atomic_fetch_add(&local_ignore->refcount, 1);
+                } else if (task_arg->parent_ignore) {
+                    new_task->parent_ignore = task_arg->parent_ignore;
+                    atomic_fetch_add(&task_arg->parent_ignore->refcount, 1);
+                } else {
+                    new_task->parent_ignore = NULL;
+                }
                 atomic_fetch_add(&config->active_tasks, 1);
                 if (threadpool_add(config->pool, search_directory, new_task) != 0) {
                     atomic_fetch_sub(&config->active_tasks, 1);
+                    /* فشل إضافة المهمة: نظف الذاكرة ونخفض refcount الذي زدناه */
+                    if (new_task->parent_ignore) free_ignore_patterns(new_task->parent_ignore);
                     free(new_task->path);
                     free(new_task);
                 }
@@ -253,10 +271,13 @@ void search_directory(void *arg) {
         }
     }
     closedir(dir);
-    if (local_ignore && local_ignore != task_arg->parent_ignore) free_ignore_patterns(local_ignore);
+    if (local_ignore) {
+        /* نقلنا ملكية المشاركة إلى الأطفال عن طريق refcount — الآن نخفض العداد الخاص بالمحلي */
+        free_ignore_patterns(local_ignore);
+    }
 
 cleanup:
-    free(path);
+    if (path) free(path);
     free(task_arg);
     if (atomic_fetch_sub(&config->active_tasks, 1) == 1) {
         pthread_mutex_lock(&config->busy_lock);
@@ -278,15 +299,12 @@ static void print_result(search_config_t *config, const char *path, char type_ch
         print_long_listing(config, path, sb);
         return;
     }
-    if (strcmp(config->output_format, "json") == 0) {
+    if (config->output_format && strcmp(config->output_format, "json") == 0) {
         if (atomic_load(&config->matches_found) > 1) {
            fprintf(config->out_stream, ",\n");
         }
         fprintf(config->out_stream, "{\"path\":\"%s\",\"type\":\"%c\",\"size\":%lld,\"mtime\":%ld}", path, type_char, (long long)sb->st_size, (long)sb->st_mtime);
-    } else if (strcmp(config->output_format, "csv") == 0) {
-        // FIX 3: Correct CSV output format.
-        // The test expects the type character ('f') to be unquoted.
-        // Removed the quotes around %c to match the test's expectation.
+    } else if (config->output_format && strcmp(config->output_format, "csv") == 0) {
         fprintf(config->out_stream, "\"%s\",%c,%lld,%ld\n", path, type_char, (long long)sb->st_size, (long)sb->st_mtime);
     } else {
         const char *color = C_FILE;
