@@ -49,7 +49,7 @@ ENV/
 env/
 env.bak/
 pip-wheel-metadata/
-
+zsh-plugins
 # Packaging / build
 dist/
 *.egg-info/
@@ -67,6 +67,9 @@ htmlcov/
 # Logs
 *.log
 .update_available
+.last_update_check
+.intro_has_run
+
 # ----------------------------------------
 # Node / JS (if project contains front-end/tools)
 # ----------------------------------------

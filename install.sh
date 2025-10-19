@@ -127,7 +127,91 @@ run_build() {
     echo -e "${C_GREY}▲▲▲ End of build output ▲▲▲${C_RESET}"
     print_success "All tools have been compiled and are ready."
 }
+# ==============================================================================
+# FUNCTION: install_zsh_plugins (v1.1 - Platform Aware)
+# Description: Downloads and installs essential Zsh plugins and tools.
+#              It now uses the native package manager for Termux for fzf/zoxide.
+# ==============================================================================
+# ==============================================================================
+# FUNCTION: install_zsh_plugins (v2.0 - Self-Contained & Robust)
+# Description: Downloads and installs essential Zsh plugins directly into the
+#              SNIPER environment's 'share/zsh-plugins' directory.
+#              Installs companion tools like zoxide using the system's package manager.
+# ==============================================================================
+install_zsh_plugins() {
+    print_stage "Installing Zsh Plugins & Power Tools"
+    
+    # Define the target directory for plugins relative to the project root
+    local plugins_dir="share/zsh-plugins"
+    mkdir -p "$plugins_dir"
+    log_msg "INFO" "Plugin directory ensured at: $plugins_dir"
 
+    # --- Helper function for cloning git repositories into the plugins directory ---
+    # Usage: clone_plugin "display_name" "git_url" ["target_folder_name"]
+    clone_plugin() {
+        local display_name="$1"
+        local url="$2"
+        # Use provided folder name or derive from URL
+        local folder_name="${3:-$(basename "$url" .git)}"
+        local target_dir="${plugins_dir}/${folder_name}"
+
+        if [ -d "$target_dir/.git" ]; then
+            print_info "Plugin '$display_name' already exists. Skipping."
+            log_msg "INFO" "Skipping clone for '$display_name', directory exists: $target_dir"
+        else
+            print_info "Downloading plugin '$display_name'..."
+            log_msg "CMD" "git clone --depth=1 $url $target_dir"
+            if git clone --depth=1 "$url" "$target_dir" >> "$LOG_FILE" 2>&1; then
+                print_success "Plugin '$display_name' downloaded successfully to '$target_dir'."
+            else
+                print_error "Failed to download plugin '$display_name'. Check log for details."
+                # Clean up partially cloned directory on failure
+                rm -rf "$target_dir"
+            fi
+        fi
+    }
+
+    # --- 1. Install ALL Zsh-based Plugins into share/zsh-plugins/ ---
+    # This includes fzf, which provides zsh scripts for integration.
+    # The 'activate' script will source them from this local directory.
+    print_info "Cloning Zsh plugins into the local environment..."
+    clone_plugin "zsh-autosuggestions" "https://github.com/zsh-users/zsh-autosuggestions.git"
+    clone_plugin "zsh-syntax-highlighting" "https://github.com/zsh-users/zsh-syntax-highlighting.git"
+    clone_plugin "zsh-completions" "https://github.com/zsh-users/zsh-completions.git"
+    clone_plugin "Powerlevel10k" "https://github.com/romkatv/powerlevel10k.git"
+    
+    # fzf is treated as a plugin here because we only need its zsh integration scripts.
+    # The fzf binary itself will be installed as a separate tool.
+    clone_plugin "fzf-zsh-scripts" "https://github.com/junegunn/fzf.git" "fzf"
+
+
+    # --- 2. Install Companion Tool Binaries (fzf & zoxide) ---
+    # These are standalone programs that our zsh scripts will use.
+    # We use the system's package manager for them as it's the most reliable way.
+    
+    # Helper function to install a package if it's not already present
+    install_package() {
+        local pkg_name="$1"
+        if command -v "$pkg_name" &> /dev/null; then
+            print_info "Tool '$pkg_name' is already installed. Skipping."
+        else
+            print_info "Installing tool '$pkg_name' using pkg..."
+            log_msg "CMD" "pkg install -y $pkg_name"
+            if pkg install -y "$pkg_name" >> "$LOG_FILE" 2>&1; then
+                print_success "'$pkg_name' installed successfully via pkg."
+            else
+                print_error "Failed to install '$pkg_name' via pkg. Check log."
+            fi
+        fi
+    }
+    
+    # We are assuming a Termux/Debian-like environment that uses 'pkg' or 'apt'
+    # The logic can be expanded for other package managers if needed.
+    install_package "fzf"
+    install_package "zoxide"
+
+    print_success "All Zsh plugins and tools have been processed."
+}
 change_shell_to_zsh() {
     print_stage "Configuring Shell Environment"
     if ! command -v zsh &> /dev/null; then
@@ -206,8 +290,8 @@ sniper() {
         (cd "\$SNIPER_ROOT" && python3 setup/setup.py check)
     else
         # Primary function: activate the environment
-        if [ -d "\$SNIPER_ROOT/.venv" ]; then
-            source "\$SNIPER_ROOT/.venv/bin/activate"
+        if [ -d "\$SNIPER_ROOT" ]; then
+            source "\$SNIPER_ROOT/bin/activate"
         else
             echo -e "\033[0;31mSniper Error:\033[0m Virtual environment not found at \$SNIPER_ROOT/.venv" >&2
         fi
@@ -240,6 +324,7 @@ main() {
     
     run_setup
     run_build
+    install_zsh_plugins
     change_shell_to_zsh
     install_sniper_function
 

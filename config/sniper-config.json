@@ -1,13 +1,16 @@
 {
     "user": {
-        "prompt_text": "SNIPER\ud83d\udc80CODER",
+        "name": "SNIPER\ud83d\udc80CODER",
         "permissions": "root",
-        "theme": "dark",
         "shell": "zsh",
         "aliases": {
             "ll": "ls -la",
             "gs": "git status"
         }
+    },
+    "appearance":{
+    	"theme_prompt": "user",
+        "theme": "dark"
     },
     "environment": {
         "python_version": "3.11",
