@@ -21,7 +21,6 @@
             "install_cmd": "pkg install -y",
             "packages": [
                 "build-essential",
-                "clang-format",
                 "libjansson",
                 "binutils",
                 "openssl",
