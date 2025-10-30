@@ -1,0 +1,16 @@
+{
+  "name": "Python Flask API",
+  "description": "A production-ready Flask REST API with a modular structure.",
+  "questions": [
+    { "key": "project_description", "prompt": "API description:", "default": "A production-ready Flask REST API." }
+  ],
+  "post_init_commands": [
+    { "command": "python3 -m venv .venv", "message": "Creating Python virtual environment..." }
+  ],
+  "next_steps": [
+    "cd {{ project_name }}",
+    "source .venv/bin/activate",
+    "pip install -r requirements.txt",
+    "flask run --host=0.0.0.0"
+  ]
+}

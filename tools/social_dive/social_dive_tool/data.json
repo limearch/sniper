@@ -1,0 +1,612 @@
+{
+  "Instagram": {
+    "url": "https://www.instagram.com/%s",
+    "category": "Social",
+    "type": "stringCheck",
+    "error_string": "The link you followed may be broken"
+  },
+  "Facebook": {
+    "url": "https://www.facebook.com/%s",
+    "category": "Social",
+    "type": "stringCheck",
+    "error_string": "This content isn't available right now"
+  },
+  "Twitter": {
+    "url": "https://twitter.com/%s",
+    "category": "Social",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "YouTube": {
+    "url": "https://www.youtube.com/@%s",
+    "category": "Video",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "TikTok": {
+    "url": "https://www.tiktok.com/@%s",
+    "category": "Video",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Reddit": {
+    "url": "https://www.reddit.com/user/%s",
+    "category": "Social",
+    "type": "stringCheck",
+    "error_string": "Sorry, nobody on Reddit goes by that name."
+  },
+  "Pinterest": {
+    "url": "https://www.pinterest.com/%s/",
+    "category": "Image",
+    "type": "statusCode"
+  },
+  "LinkedIn": {
+    "url": "https://www.linkedin.com/in/%s",
+    "category": "Professional",
+    "type": "errorCode",
+    "error_code": 999
+  },
+  "Github": {
+    "url": "https://github.com/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "GitLab": {
+    "url": "https://gitlab.com/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "BitBucket": {
+    "url": "https://bitbucket.org/%s/",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Steam": {
+    "url": "https://steamcommunity.com/id/%s",
+    "category": "Gaming",
+    "type": "stringCheck",
+    "error_string": "The specified profile could not be found."
+  },
+  "Twitch": {
+    "url": "https://www.twitch.tv/%s",
+    "category": "Gaming",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Spotify": {
+    "url": "https://open.spotify.com/user/%s",
+    "category": "Music",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "SoundCloud": {
+    "url": "https://soundcloud.com/%s",
+    "category": "Music",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Medium": {
+    "url": "https://medium.com/@%s",
+    "category": "Blogging",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "DeviantArt": {
+    "url": "https://www.deviantart.com/%s",
+    "category": "Art",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Behance": {
+    "url": "https://www.behance.net/%s",
+    "category": "Art",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Dribbble": {
+    "url": "https://dribbble.com/%s",
+    "category": "Art",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Flickr": {
+    "url": "https://www.flickr.com/people/%s",
+    "category": "Image",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Vimeo": {
+    "url": "https://vimeo.com/%s",
+    "category": "Video",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Telegram": {
+    "url": "https://t.me/%s",
+    "category": "Messaging",
+    "type": "stringCheck",
+    "error_string": "If you have <strong>Telegram</strong>"
+  },
+  "Discord": {
+    "url": "https://discord.id/user/%s",
+    "category": "Gaming",
+    "type": "stringCheck",
+    "error_string": "User not found!"
+  },
+  "Roblox": {
+    "url": "https://www.roblox.com/user.aspx?username=%s",
+    "category": "Gaming",
+    "type": "stringCheck",
+    "error_string": "Page cannot be found or no longer exists"
+  },
+  "Patreon": {
+    "url": "https://www.patreon.com/%s",
+    "category": "Finance",
+    "type": "statusCode"
+  },
+  "Kickstarter": {
+    "url": "https://www.kickstarter.com/profile/%s",
+    "category": "Crowdfunding",
+    "type": "statusCode"
+  },
+  "Etsy": {
+    "url": "https://www.etsy.com/shop/%s",
+    "category": "Shopping",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "eBay": {
+    "url": "https://www.ebay.com/usr/%s",
+    "category": "Shopping",
+    "type": "stringCheck",
+    "error_string": "The User ID you entered was not found"
+  },
+  "Imgur": {
+    "url": "https://imgur.com/user/%s",
+    "category": "Image",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Giphy": {
+    "url": "https://giphy.com/%s",
+    "category": "Image",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "StackOverflow": {
+    "url": "https://stackoverflow.com/users/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "HackerRank": {
+    "url": "https://www.hackerrank.com/%s",
+    "category": "Development",
+    "type": "stringCheck",
+    "error_string": "Something went wrong"
+  },
+  "Codecademy": {
+    "url": "https://www.codecademy.com/profiles/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "LeetCode": {
+    "url": "https://leetcode.com/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Kaggle": {
+    "url": "https://www.kaggle.com/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Replit": {
+    "url": "https://replit.com/@%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Keybase": {
+    "url": "https://keybase.io/%s",
+    "category": "Security",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "TryHackMe": {
+    "url": "https://tryhackme.com/p/%s",
+    "category": "Security",
+    "type": "stringCheck",
+    "error_string": "Page Not Found"
+  },
+  "HackTheBox": {
+    "url": "https://app.hackthebox.com/users/%s",
+    "category": "Security",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Tumblr": {
+    "url": "https://%s.tumblr.com",
+    "category": "Blogging",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Wordpress": {
+    "url": "https://%s.wordpress.com",
+    "category": "Blogging",
+    "type": "stringCheck",
+    "error_string": "site doesn&#039;t exist"
+  },
+  "Blogger": {
+    "url": "https://%s.blogspot.com",
+    "category": "Blogging",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "About.me": {
+    "url": "https://about.me/%s",
+    "category": "Professional",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "SlideShare": {
+    "url": "https://slideshare.net/%s",
+    "category": "Professional",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Scribd": {
+    "url": "https://www.scribd.com/%s",
+    "category": "Documents",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Issuu": {
+    "url": "https://issuu.com/%s",
+    "category": "Documents",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Goodreads": {
+    "url": "https://www.goodreads.com/%s",
+    "category": "Books",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "IMDb": {
+    "url": "https://www.imdb.com/user/%s/",
+    "category": "Movies",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Letterboxd": {
+    "url": "https://letterboxd.com/%s/",
+    "category": "Movies",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "MyAnimeList": {
+    "url": "https://myanimelist.net/profile/%s",
+    "category": "Anime",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Chess.com": {
+    "url": "https://www.chess.com/member/%s",
+    "category": "Gaming",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Lichess": {
+    "url": "https://lichess.org/@/%s",
+    "category": "Gaming",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "TripAdvisor": {
+    "url": "https://www.tripadvisor.com/Profile/%s",
+    "category": "Travel",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Wikipedia": {
+    "url": "https://www.wikipedia.org/wiki/User:%s",
+    "category": "Knowledge",
+    "type": "stringCheck",
+    "error_string": "Wikipedia does not have a user page with this exact name."
+  },
+  "Quora": {
+    "url": "https://www.quora.com/profile/%s",
+    "category": "Knowledge",
+    "type": "stringCheck",
+    "error_string": "Page Not Found"
+  },
+  "500px": {
+    "url": "https://500px.com/p/%s",
+    "category": "Image",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Bandcamp": {
+    "url": "https://bandcamp.com/%s",
+    "category": "Music",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "CashApp": {
+    "url": "https://cash.app/$%s",
+    "category": "Finance",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Docker Hub": {
+    "url": "https://hub.docker.com/u/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Fiverr": {
+    "url": "https://www.fiverr.com/%s",
+    "category": "Professional",
+    "type": "statusCode"
+  },
+  "GeeksforGeeks": {
+    "url": "https://auth.geeksforgeeks.org/user/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Itch.io": {
+    "url": "https://%s.itch.io/",
+    "category": "Gaming",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Mastodon": {
+    "url": "https://mastodon.social/@%s",
+    "category": "Social",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "MixCloud": {
+    "url": "https://www.mixcloud.com/%s/",
+    "category": "Music",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "NPM": {
+    "url": "https://www.npmjs.com/~%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "ReverbNation": {
+    "url": "https://www.reverbnation.com/%s",
+    "category": "Music",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Slack": {
+    "url": "https://%s.slack.com",
+    "category": "Professional",
+    "type": "statusCode"
+  },
+  "Snapchat": {
+    "url": "https://www.snapchat.com/add/%s",
+    "category": "Social",
+    "type": "statusCode"
+  },
+  "SourceForge": {
+    "url": "https://sourceforge.net/u/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Trello": {
+    "url": "https://trello.com/%s",
+    "category": "Professional",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "VSCO": {
+    "url": "https://vsco.co/%s",
+    "category": "Image",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Wattpad": {
+    "url": "https://www.wattpad.com/user/%s",
+    "category": "Books",
+    "type": "statusCode"
+  },
+  "Xbox Gamertag": {
+    "url": "https://xboxgamertag.com/search/%s",
+    "category": "Gaming",
+    "type": "stringCheck",
+    "error_string": "can't be found"
+  },
+  "YouNow": {
+    "url": "https://www.younow.com/%s",
+    "category": "Video",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Zillow": {
+    "url": "https://www.zillow.com/profile/%s",
+    "category": "Real Estate",
+    "type": "stringCheck",
+    "error_string": "Page is unavailable"
+  },
+  "AngelList": {
+    "url": "https://angel.co/u/%s",
+    "category": "Professional",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "AskFM": {
+    "url": "https://ask.fm/%s",
+    "category": "Social",
+    "type": "stringCheck",
+    "error_string": "Page not found"
+  },
+  "Badoo": {
+    "url": "https://badoo.com/en/%s/",
+    "category": "Dating",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Canva": {
+    "url": "https://www.canva.com/%s",
+    "category": "Art",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "CodePen": {
+    "url": "https://codepen.io/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Cracked": {
+    "url": "https://www.cracked.com/members/%s/",
+    "category": "Entertainment",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "DailyMotion": {
+    "url": "https://www.dailymotion.com/%s",
+    "category": "Video",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Duolingo": {
+    "url": "https://www.duolingo.com/profile/%s",
+    "category": "Education",
+    "type": "stringCheck",
+    "error_string": "Page not found"
+  },
+  "EVE Online": {
+    "url": "https://evewho.com/character/%s",
+    "category": "Gaming",
+    "type": "stringCheck",
+    "error_string": "Not Found"
+  },
+  "Flipboard": {
+    "url": "https://flipboard.com/@%s",
+    "category": "News",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Gitee": {
+    "url": "https://gitee.com/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Gravatar": {
+    "url": "http://en.gravatar.com/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Imgflip": {
+    "url": "https://imgflip.com/user/%s",
+    "category": "Entertainment",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Instructables": {
+    "url": "https://www.instructables.com/member/%s",
+    "category": "DIY",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Last.fm": {
+    "url": "https://www.last.fm/user/%s",
+    "category": "Music",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "LiveJournal": {
+    "url": "https://%s.livejournal.com",
+    "category": "Blogging",
+    "type": "stringCheck",
+    "error_string": "No such user"
+  },
+  "Newgrounds": {
+    "url": "https://%s.newgrounds.com",
+    "category": "Art",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Pastebin": {
+    "url": "https://pastebin.com/u/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Pexels": {
+    "url": "https://www.pexels.com/@%s",
+    "category": "Image",
+    "type": "statusCode"
+  },
+  "ProductHunt": {
+    "url": "https://www.producthunt.com/@%s",
+    "category": "Technology",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "PyPi": {
+    "url": "https://pypi.org/user/%s",
+    "category": "Development",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "Roblox Profile": {
+    "url": "https://www.roblox.com/users/profile?username=%s",
+    "category": "Gaming",
+    "type": "stringCheck",
+    "error_string": "The page you requested was not found."
+  },
+  "Signal": {
+    "url": "https://signal.me/#u/%s",
+    "category": "Messaging",
+    "type": "stringCheck",
+    "error_string": "User not found"
+  },
+  "Tinder": {
+    "url": "https://www.gotinder.com/@%s",
+    "category": "Dating",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "TradingView": {
+    "url": "https://www.tradingview.com/u/%s/",
+    "category": "Finance",
+    "type": "stringCheck",
+    "error_string": "Page not found"
+  },
+  "VK": {
+    "url": "https://vk.com/%s",
+    "category": "Social",
+    "type": "stringCheck",
+    "error_string": "The page you are looking for is temporarily unavailable."
+  },
+  "9GAG": {
+    "url": "https://www.9gag.com/u/%s",
+    "category": "Entertainment",
+    "type": "errorCode",
+    "error_code": 404
+  },
+  "FortniteTracker": {
+    "url": "https://fortnitetracker.com/profile/all/%s",
+    "category": "Gaming",
+    "type": "stringCheck",
+    "error_string": "We could not find the account"
+  }
+}

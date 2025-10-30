@@ -1,0 +1,64 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: net-discover - Local Network Discovery Tool", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]net-discover[/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About net-discover[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "An all-in-one local network discovery tool. It performs a quick scan on the",
+          "local subnet to find connected devices and displays their IP and MAC addresses."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]⚠️ Dependencies[/]",
+      "style": "yellow",
+      "content": [{
+          "component": "Markup",
+          "text": "Requires the [bold red]nmap[/] command-line tool to be installed on your system. It is used as the backend for the network scan."
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Operation & Options[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]Operation:[/b]",
+          "  The tool automatically determines your local subnet (e.g., 192.168.1.0/24)",
+          "  and performs a ping scan ([cyan]nmap -sn[/]) to discover live hosts.",
+          "",
+          "[bold]Options:[/b]",
+          "  [green]-o, --output <file>[/]   Save the list of found devices to a file.",
+          "  [green]-x, --export <format>[/] Specify export format: 'json' or 'csv'.",
+          "  [green]-h, --help[/]             Show this help message."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+          "component": "Markup",
+          "text": [
+              "[#] Run a standard scan and display results on the terminal:",
+              "  [yellow]net-discover[/]",
+              "",
+              "[#] Scan the network and export the results to a JSON file:",
+              "  [yellow]net-discover[/] [green]-o devices.json -x json[/]"
+          ]
+      }]
+    }
+  ]
+}

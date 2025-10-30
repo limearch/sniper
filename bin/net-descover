@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+# File: bin/net-descover (REFACTORED - Complete Code)
+# Description: An all-in-one network discovery tool for the SNIPER toolkit.
+
+import sys
+import argparse
+import socket
+import time
+import json
+import csv
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "net-discover"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    import nmap
+    import getmac
+    import requests
+    from rich import box
+    from rich.table import Table
+    from rich.console import Console
+    # N4Tools is a specific dependency, check for it
+    from N4Tools.Design import ThreadAnimation, Animation
+except ImportError as e:
+    env.log.critical(f"A required library is missing: '{e.name}'. Please run: pip install {e.name}")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
+console = Console()
+AN = Animation()
+
+class NetworkInfo:
+    """
+    A class to encapsulate network scanning and information gathering.
+    """
+    def __init__(self):
+        try:
+            self.nmap_scanner = nmap.PortScanner()
+        except nmap.nmap.PortScannerError:
+            env.log.critical("The 'nmap' command-line tool was not found in your PATH.")
+            env.log.critical("Please install it (e.g., 'sudo apt install nmap' or 'pkg install nmap') and try again.")
+            sys.exit(1)
+            
+        self.scan_time = 0.0
+        self.internal_ip_addr = self._get_internal_ip()
+        self.scan_target = self._get_subnet()
+
+    def _get_internal_ip(self) -> str:
+        """Finds the local internal IP address by connecting to an external server."""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                return s.getsockname()[0]
+        except Exception:
+            env.log.error("Could not determine internal IP. Please check your network connection.")
+            sys.exit(1)
+
+    def _get_subnet(self) -> str:
+        """Constructs the subnet range (e.g., 192.168.1.0/24) from the internal IP."""
+        ip_parts = self.internal_ip_addr.split('.')
+        return '.'.join(ip_parts[:-1]) + '.0/24'
+
+    def scan_network(self):
+        """Performs the nmap ping scan on the local subnet."""
+        start_time = time.time()
+        # -sP is a ping scan, which is fast for host discovery.
+        self.nmap_scanner.scan(hosts=self.scan_target, arguments='-sP')
+        self.scan_time = time.time() - start_time
+        env.log.info(f"Scan completed in {self.scan_time:.2f} seconds.")
+
+    def get_external_ip_info(self) -> dict:
+        """Fetches external IP information from ipinfo.io."""
+        try:
+            return requests.get('http://ipinfo.io/json', timeout=10).json()
+        except requests.RequestException as e:
+            env.log.warning(f"Could not fetch external IP info: {e}")
+            return {"error": str(e)}
+
+    def get_connected_devices(self) -> list:
+        """Parses the nmap scan results to get a list of connected devices."""
+        devices = []
+        for ip in self.nmap_scanner.all_hosts():
+            try:
+                # Attempt a reverse DNS lookup to get the hostname.
+                device_name = socket.getfqdn(ip)
+                if device_name == ip:
+                    device_name = '[red]Unknown Hostname[/red]'
+            except socket.herror:
+                device_name = '[red]Unknown Hostname[/red]'
+            
+            # Get the MAC address for the given IP.
+            mac = getmac.get_mac_address(ip=ip)
+            devices.append({
+                "device_name": device_name,
+                "ip": ip,
+                "mac": mac if mac else 'Unknown'
+            })
+        return devices
+
+    def display_results(self):
+        """Renders the gathered information into Rich tables."""
+        
+        # --- IP Information Table ---
+        ip_table = Table(title="[bold magenta]Network IP Information[/bold magenta]", box=box.DOUBLE_EDGE, expand=True)
+        ip_table.add_column("Property", style="bold cyan")
+        ip_table.add_column("Value", style="green")
+        ip_table.add_row("Internal IP", self.internal_ip_addr)
+        
+        external_info = self.get_external_ip_info()
+        for key, val in external_info.items():
+            if key not in ['hostname', 'readme', 'error']:
+                display_key = key.replace('ip', 'External IP').capitalize()
+                ip_table.add_row(display_key, str(val))
+        console.print(ip_table)
+
+        # --- Connected Devices Table ---
+        devices = self.get_connected_devices()
+        device_table = Table(title="[bold magenta]Discovered Devices on Network[/bold magenta]", box=box.DOUBLE_EDGE, expand=True)
+        device_table.add_column("Hostname", style="cyan")
+        device_table.add_column("IP Address", style="green")
+        device_table.add_column("MAC Address", style="yellow")
+        
+        for device in devices:
+            device_table.add_row(
+                device['device_name'], 
+                device['ip'], 
+                device['mac']
+            )
+        console.print(device_table)
+        env.log.info(f"Total devices found: {len(devices)}")
+
+    def save_to_file(self, filename: str, format_type: str):
+        """Saves the list of discovered devices to a file."""
+        devices = self.get_connected_devices()
+        # We need to clean the rich markup before saving
+        for device in devices:
+            if '[red]' in device['device_name']:
+                device['device_name'] = 'Unknown'
+
+        env.log.info(f"Exporting {len(devices)} discovered devices to '{filename}'...")
+        try:
+            if format_type == 'json':
+                with open(filename, 'w', encoding='utf-8') as f:
+                    json.dump(devices, f, indent=4)
+            elif format_type == 'csv':
+                with open(filename, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=["device_name", "ip", "mac"])
+                    writer.writeheader()
+                    writer.writerows(devices)
+            
+            env.log.info(f"Results successfully exported.")
+        except IOError as e:
+            env.log.error(f"Failed to write to file '{filename}': {e}")
+
+
+@ThreadAnimation(Animation=AN.Loading, timer=.15)
+def perform_scan(thread):
+    """
+    Wrapper function for the N4Tools animation. This function runs the scan
+    and is executed in a separate thread by the decorator.
+    """
+    network_info = NetworkInfo()
+    network_info.scan_network()
+    return network_info
+
+
+def main():
+    """Main entry point, argument parsing, and workflow orchestration."""
+    parser = argparse.ArgumentParser(prog="net-discover", add_help=False)
+    parser.add_argument('-o', '--output', help="Save scan results to a file (e.g., devices.json).")
+    parser.add_argument('-x', '--export', choices=['json', 'csv'], default='json', help="Specify export format (json or csv).")
+    parser.add_argument("-h", "--help", action="store_true")
+    args = parser.parse_args()
+
+    if args.help:
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "net-descover"], capture_output=False)
+        return
+
+    # Run the animated scan
+    network_info = perform_scan()
+    
+    # Display the results
+    network_info.display_results()
+
+    # Save to file if requested
+    if args.output:
+        network_info.save_to_file(args.output, args.export)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print() # Move to a new line after the animation
+        env.log.warning("Operation cancelled by user.")
+        sys.exit(130)

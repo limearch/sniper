@@ -1,0 +1,66 @@
+{
+    "python": [
+        "rich",
+        "beautifulsoup4",
+        "prompt_toolkit",
+        "cryptography",
+        "jsbeautifier",
+        "questionary",
+        "pyrebase4",
+        "pyfiglet",
+        "requests",
+        "autopep8",
+        "colorama",
+        "cython",
+        "jinja2",
+        "tqdm"
+    ],
+    "system": {
+        "termux": {
+            "update_cmd": "pkg update -y",
+            "install_cmd": "pkg install -y",
+            "packages": [
+                "build-essential",
+                "clang-format",
+                "libjansson",
+                "binutils",
+                "openssl",
+                "libgit2",
+                "golang",
+                "libffi",
+                "clang",
+                "shfmt",
+                "unzip",
+                "rust",
+                "make",
+                "git",
+                "tar",
+                "zsh",
+                "jq"
+            ]
+        },
+        "debian": {
+            "update_cmd": "sudo apt-get update",
+            "install_cmd": "sudo apt-get install -y",
+            "packages": [
+                "clang",
+                "make",
+                "libzip-dev",
+                "git",
+                "zsh",
+                "tar",
+                "unzip",
+                "shfmt",
+                "clang-format",
+                "build-essential",
+                "libffi-dev",
+                "rustc",
+                "nodejs",
+                "golang",
+                "openjdk-17-jdk",
+                "ruby-full",
+                "dart"
+            ]
+        }
+    }
+}

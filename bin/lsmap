@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+# File: bin/lsmap (REFACTORED - Complete Code)
+# Description: A directory walker that displays the folder structure as a tree,
+# with advanced filtering and reporting features.
+
+import os
+import pathlib
+import sys
+import json
+from argparse import ArgumentParser
+from datetime import datetime
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "lsmap"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    from rich import print
+    from rich.filesize import decimal
+    from rich.markup import escape
+    from rich.text import Text
+    from rich.tree import Tree
+except ImportError as e:
+    env.log.critical(f"A required library is missing: '{e.name}'. Please run: pip install {e.name}")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
+
+def convert_size_to_bytes(size_str: str) -> int:
+    """
+    Converts a size string with a unit (e.g., '10k', '1M') to bytes.
+    
+    Returns:
+        The size in bytes as an integer.
+    """
+    if not size_str: return 0
+    size_str = size_str.lower()
+    size_map = {'k': 1024, 'm': 1024**2, 'g': 1024**3}
+    unit = size_str[-1]
+    
+    if unit in size_map:
+        try:
+            value = int(size_str[:-1])
+            return value * size_map[unit]
+        except ValueError:
+            return -1 # Indicate error
+    try:
+        return int(size_str)
+    except ValueError:
+        return -1 # Indicate error
+
+def walk_directory(directory: Path, tree: Tree, args, current_depth=0) -> tuple:
+    """
+    Recursively walks a directory, builds a Rich Tree, and collects file data.
+    
+    Returns:
+        A tuple containing (num_folders, num_files, list_of_all_files).
+    """
+    num_folders = 0
+    num_files = 0
+    all_files_data = [] # List of tuples: (path, size, mtime)
+    
+    try:
+        # Sort paths for consistent output, directories first.
+        paths = sorted(
+            list(directory.iterdir()),
+            key=lambda p: (not p.is_dir(), p.name.lower())
+        )
+    except PermissionError:
+        tree.add("[bold red]🚫 Permission Denied[/bold red]")
+        env.log.warning(f"Permission denied while scanning '{directory}'.")
+        return 0, 0, []
+
+    for path in paths:
+        # Check if max depth has been reached.
+        if args.depth is not None and current_depth >= args.depth:
+            # Add a visual indicator that there's more content.
+            if path.is_dir():
+                tree.add("[dim]...")
+            break
+
+        # Skip hidden files unless requested.
+        if not args.show_hidden and path.name.startswith("."):
+            continue
+
+        if path.is_dir():
+            if not args.files_only:
+                num_folders += 1
+                # Use a dimmed style for special directories like __pycache__.
+                style = "dim" if path.name.startswith("__") else ""
+                branch = tree.add(
+                    f"[bold magenta]:open_file_folder: [link file://{path}]{escape(path.name)}[/]",
+                    style=style, guide_style=style,
+                )
+                # Recurse into the subdirectory.
+                sub_folders, sub_files, sub_files_data = walk_directory(path, branch, args, current_depth + 1)
+                num_folders += sub_folders
+                num_files += sub_files
+                all_files_data.extend(sub_files_data)
+        else: # It's a file
+            try:
+                file_size = path.stat().st_size
+            except FileNotFoundError:
+                continue # File might have been deleted during the scan
+
+            # Apply size filter.
+            if args.min_size and file_size < args.min_size_bytes:
+                continue
+            
+            num_files += 1
+            all_files_data.append((path, file_size, path.stat().st_mtime))
+            
+            if not args.dirs_only:
+                text_filename = Text(path.name, "green")
+                text_filename.highlight_regex(r"\..*$", "bold red")
+                text_filename.stylize(f"link file://{path}")
+                text_filename.append(f" ({decimal(file_size)})", "blue")
+                
+                # Simple icon mapping based on extension.
+                icon = "🐍 " if path.suffix == ".py" else "📄 "
+                tree.add(Text(icon) + text_filename)
+                
+    return num_folders, num_files, all_files_data
+
+
+def get_total_disk_usage(directory: Path) -> int:
+    """Calculates the total size of all files in a directory and its subdirectories."""
+    total_size = 0
+    try:
+        for dirpath, _, filenames in os.walk(directory):
+            # Skip hidden directories.
+            if any(part.startswith('.') for part in dirpath.split(os.sep)):
+                continue
+            for f in filenames:
+                # Skip hidden files.
+                if f.startswith('.'):
+                    continue
+                fp = os.path.join(dirpath, f)
+                if not os.path.islink(fp):
+                    try:
+                        total_size += os.path.getsize(fp)
+                    except FileNotFoundError:
+                        continue # File may have been deleted.
+    except PermissionError:
+        env.log.warning(f"Permission denied while calculating disk usage for '{directory}'.")
+    return total_size
+
+
+def main():
+    """Main entry point, argument parsing, and workflow orchestration."""
+    parser = ArgumentParser(prog="lsmap", add_help=False)
+    parser.add_argument("directory", nargs="?", default=".", help="Directory to scan.")
+    parser.add_argument("-f", "--files-only", action="store_true")
+    parser.add_argument("-d", "--dirs-only", action="store_true")
+    parser.add_argument("-s", "--show-hidden", action="store_true")
+    parser.add_argument("-m", "--min-size", help="Minimum file size (e.g., 10k, 1M, 2G).")
+    parser.add_argument("-D", "--depth", type=int, help="Max depth to scan.")
+    parser.add_argument("-t", "--top-size", type=int, help="Display top N largest files.")
+    parser.add_argument("-r", "--recent-files", action="store_true")
+    parser.add_argument("-e", "--export", choices=["json"], help="Export file list to JSON format.")
+    parser.add_argument("-u", "--disk-usage", action="store_true")
+    parser.add_argument("-h", "--help", action="store_true")
+    args = parser.parse_args()
+
+    if args.help:
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "lsmap"], capture_output=False)
+        return
+
+    # Convert min_size to bytes once at the beginning.
+    args.min_size_bytes = 0
+    if args.min_size:
+        args.min_size_bytes = convert_size_to_bytes(args.min_size)
+        if args.min_size_bytes < 0:
+            env.log.error(f"Invalid size format: '{args.min_size}'. Use K, M, or G.")
+            return
+
+    directory = Path(args.directory).resolve()
+    if not directory.is_dir():
+        env.log.error(f"Directory '{directory}' not found.")
+        return
+
+    # --- Start Building the Tree ---
+    tree = Tree(
+        f":open_file_folder: [link file://{directory}]{directory}",
+        guide_style="bold bright_blue",
+    )
+    
+    num_folders, num_files, all_files_data = walk_directory(directory, tree, args)
+    
+    # Print the main tree structure first.
+    print(tree)
+    
+    # --- Generate and Print Reports ---
+    reports = []
+    if args.top_size:
+        # Sort files by size in descending order.
+        all_files_data.sort(key=lambda x: x[1], reverse=True)
+        top_files = all_files_data[:args.top_size]
+        reports.append("\n[bold cyan]--- Top Largest Files ---[/bold cyan]")
+        for file_path, size, _ in top_files:
+            reports.append(f"📄 {escape(str(file_path.relative_to(directory)))} ({decimal(size)})")
+
+    if args.recent_files:
+        # Sort files by modification time in descending order.
+        all_files_data.sort(key=lambda x: x[2], reverse=True)
+        recent_files = all_files_data[:10]
+        reports.append("\n[bold cyan]--- Recently Modified Files ---[/bold cyan]")
+        for file_path, _, mtime in recent_files:
+            reports.append(f"📄 {escape(str(file_path.relative_to(directory)))} ([dim]{datetime.fromtimestamp(mtime):%Y-%m-%d %H:%M}[/dim])")
+
+    if args.disk_usage:
+        total_size = get_total_disk_usage(directory)
+        reports.append(f"\n[bold cyan]--- Disk Usage ---[/bold cyan]\nTotal for [i]{directory.name}[/i]: {decimal(total_size)}")
+
+    if args.export == "json":
+        json_output = [{"path": str(p), "size": s, "mtime": m} for p, s, m in all_files_data]
+        output_filename = f"{directory.name}_scan_results.json"
+        try:
+            with open(output_filename, "w") as f:
+                json.dump(json_output, f, indent=4)
+            reports.append(f"\n[bold green]✅ Exported file list to {output_filename}[/bold green]")
+        except IOError as e:
+            env.log.error(f"Could not write to export file: {e}")
+
+    if reports:
+        for report in reports:
+            print(report)
+
+    # --- Final Summary ---
+    print(f"\n[bold]Summary:[/bold] {num_folders} directories, {num_files} files found.")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        env.log.warning("Operation cancelled by user.")

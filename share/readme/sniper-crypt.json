@@ -1,0 +1,85 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: crypt - File & Folder Encryption Tool", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]sniper-crypt[/] [green]<COMMAND>[/] [cyan]<path>[/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About sniper-crypt[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A powerful, concurrent utility for encrypting and decrypting files and folders.",
+          "It uses the secure [bold]AES-256-GCM[/] algorithm and [bold]Scrypt[/] for key derivation",
+          "to provide strong protection against brute-force attacks."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Commands[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]encrypt <path>[/]   Encrypt a specific file or all files in a directory recursively.",
+          "  [green]decrypt <path>[/]   Decrypt a [cyan].enc[/] file or all [cyan].enc[/] files in a directory recursively.",
+          "  [green]genpass[/]           Generate a strong, random password suitable for encryption."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]Options[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]Encrypt Options:[/b]",
+          "  [green]-r, --remove[/]      [bold red]Securely delete[/] the original file(s) after successful encryption.",
+          "",
+          "[bold]Genpass Options:[/b]",
+          "  [green]-l, --length <N>[/]  Length of the password to generate (default: 24).",
+          "",
+          "[bold]General Options:[/b]",
+          "  [green]-h, --help[/]         Show this help message."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Encrypt a single file and securely remove the original:",
+          "  [yellow]sniper-crypt encrypt secrets.txt -r[/]",
+          "",
+          "[#] Decrypt all encrypted files within a directory and its subdirectories:",
+          "  [yellow]sniper-crypt decrypt ./my_archive/[/]",
+          "",
+          "[#] Generate a strong 32-character password to use for encryption:",
+          "  [yellow]sniper-crypt genpass -l 32[/]"
+        ]
+      }]
+    },
+    {
+        "component": "Panel",
+        "title": "[red]Common Errors & Security Notes[/]",
+        "style": "red",
+        "content": [{
+            "component": "Markup",
+            "text": [
+                "  • [bold]\"Incorrect password or corrupted file\":[/] The password is wrong, or the file was damaged.",
+                "  • [bold]\"Output file already exists\":[/] The tool will not overwrite existing files during decryption to prevent data loss.",
+                "  • [bold]Security Note:[/] Forgetting your password means your data is permanently lost. There is no recovery mechanism."
+            ]
+        }]
+    }
+  ]
+}

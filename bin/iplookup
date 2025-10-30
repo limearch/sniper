@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+# File: bin/iplookup (REFACTORED - Complete Code)
+# Description: A tool to find geolocation and network information for an IP or domain.
+
+import sys
+import argparse
+import socket
+import threading
+import time
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "iplookup"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    import requests
+    from rich.console import Console
+    from rich.table import Table
+except ImportError as e:
+    env.log.critical(f"A required library is missing: '{e.name}'. Please run: pip install {e.name}")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
+
+class Spinner:
+    # This class remains unchanged, as it's a specific UI component for this tool.
+    def __init__(self, message="Querying API..."):
+        self.message = message
+        self.stop_running = threading.Event()
+        self.spin_thread = threading.Thread(target=self.spin)
+
+    def start(self): self.spin_thread.start()
+    def stop(self):
+        self.stop_running.set()
+        self.spin_thread.join()
+        sys.stdout.write('\r' + ' ' * (len(self.message) + 10) + '\r')
+        sys.stdout.flush()
+
+    def spin(self):
+        spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+        while not self.stop_running.is_set():
+            for char in spinner_chars:
+                if self.stop_running.is_set(): break
+                sys.stdout.write(f'\r\033[94m[INFO]\033[0m {self.message} \033[96m{char}\033[0m')
+                sys.stdout.flush()
+                time.sleep(0.1)
+
+
+def lookup_target(target: str):
+    """
+    Performs the API lookup and prints the results in a formatted table.
+    """
+    API_URL = f"http://ip-api.com/json/{target}?fields=status,message,country,countryCode,regionName,city,lat,lon,timezone,isp,org,as,query"
+    spinner = Spinner()
+    spinner.start()
+    try:
+        response = requests.get(API_URL, timeout=10)
+        spinner.stop()
+        response.raise_for_status()
+        data = response.json()
+        
+        if data.get("status") != "success":
+            env.log.error(f"API lookup failed: {data.get('message', 'Unknown error')}")
+            sys.exit(1)
+
+        env.log.info("Target information retrieved!")
+        console = Console()
+
+        # --- Geo-Location Table ---
+        geo_table = Table(box=None, show_header=False)
+        geo_table.add_column(style="bold magenta", justify="right")
+        geo_table.add_column(style="green")
+        geo_table.add_row("IP Address:", data.get('query'))
+        geo_table.add_row("Location:", f"{data.get('city', 'N/A')}, {data.get('regionName', 'N/A')}, {data.get('country', 'N/A')}")
+        geo_table.add_row("Coordinates:", f"Lat: {data.get('lat', 'N/A')}, Lon: {data.get('lon', 'N/A')}")
+        geo_table.add_row("Timezone:", data.get('timezone'))
+        
+        # --- Network Table ---
+        net_table = Table(box=None, show_header=False)
+        net_table.add_column(style="bold magenta", justify="right")
+        net_table.add_column(style="green")
+        net_table.add_row("ISP:", data.get('isp'))
+        net_table.add_row("Organization:", data.get('org'))
+        net_table.add_row("ASN:", data.get('as'))
+
+        console.print(geo_table)
+        console.print(net_table)
+
+    except (requests.exceptions.Timeout, requests.exceptions.RequestException) as e:
+        spinner.stop()
+        env.log.error(f"A network error occurred: {e}")
+        sys.exit(1)
+
+
+def main():
+    """Main entry point, argument parsing, and command dispatching."""
+    parser = argparse.ArgumentParser(prog="iplookup", add_help=False)
+    parser.add_argument("target", nargs='?', help="The IP address or domain name to look up.")
+    parser.add_argument('-h', '--help', action='store_true')
+    args = parser.parse_args()
+
+    if args.help or not args.target:
+        # Calls the central help renderer with this tool's specific JSON data.
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "iplookup"], capture_output=False)
+        sys.exit(0)
+
+    target = args.target
+    try:
+        # Resolve domain to IP if it's not an IP address
+        if not all(c.isdigit() or c == '.' for c in target):
+            env.log.info(f"Resolving domain: {target}")
+            resolved_ip = socket.gethostbyname(target)
+            env.log.info(f"'{target}' resolves to {resolved_ip}")
+    except socket.gaierror:
+        env.log.error(f"Could not resolve domain. Please check the name and your connection.")
+        sys.exit(1)
+
+    lookup_target(target)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print() # Move to a new line after the spinner
+        env.log.warning("Operation cancelled by user.")
+        sys.exit(130)

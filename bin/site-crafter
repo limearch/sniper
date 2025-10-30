@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+# File: bin/site-crafter (REFACTORED - Complete Code)
+# Description: A tool that downloads a live website and converts it into a local Flask project.
+
+import sys
+import argparse
+import os
+import subprocess
+from pathlib import Path
+from urllib.parse import urljoin, urlparse
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "site-crafter"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
+    from rich.prompt import Confirm
+    from rich.rule import Rule
+    from bs4 import BeautifulSoup
+    import validators
+    import requests
+except ImportError as e:
+    env.log.critical(f"A required library is missing: '{e.name}'. Please run: pip install {e.name}")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
+console = Console()
+FLASK_TEMPLATE = """
+from flask import Flask, render_template, send_from_directory
+import os
+
+app = Flask(__name__)
+
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    return send_from_directory(os.path.join(app.root_path, 'static'), filename)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
+"""
+
+def create_project_structure(project_dir: Path) -> bool:
+    """Creates the necessary Flask project directories and the main app.py file."""
+    console.print(Rule("[bold cyan]Step 1: Creating Project Structure[/]"))
+    try:
+        (project_dir / "templates").mkdir(parents=True, exist_ok=True)
+        (project_dir / "static").mkdir(exist_ok=True)
+        console.print(f"  [green]✔[/] Created directories: [cyan]templates/[/] and [cyan]static/[/]")
+
+        with open(project_dir / "app.py", "w", encoding="utf-8") as f:
+            f.write(FLASK_TEMPLATE)
+        console.print(f"  [green]✔[/] Created Flask server file: [cyan]app.py[/]")
+        return True
+    except OSError as e:
+        env.log.error(f"Could not create project directories: {e}")
+        return False
+
+def download_and_process(url: str, project_dir: Path) -> bool:
+    """Downloads the main HTML, parses it, downloads assets, and rewrites paths."""
+    console.print(Rule("[bold cyan]Step 2: Downloading and Processing Website[/]"))
+    
+    session = requests.Session()
+    session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+
+    try:
+        with console.status("[cyan]Fetching main page...[/]"):
+            response = session.get(url)
+            response.raise_for_status()
+    except requests.RequestException as e:
+        env.log.error(f"Failed to fetch URL '{url}': {e}")
+        return False
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+    
+    tags_to_process = {'link': 'href', 'script': 'src', 'img': 'src', 'video': 'src', 'source': 'src'}
+    resources_to_download = []
+    base_url_netloc = urlparse(url).netloc
+
+    for tag, attr in tags_to_process.items():
+        for res in soup.find_all(tag):
+            if res.has_attr(attr):
+                res_url = res[attr]
+                if not res_url or res_url.startswith(('data:', '#', 'mailto:')):
+                    continue
+                
+                abs_url = urljoin(url, res_url)
+                # Only download assets from the same domain
+                if urlparse(abs_url).netloc != base_url_netloc:
+                    continue
+
+                file_name = Path(urlparse(res_url).path).name
+                if not file_name: continue
+                
+                local_path = project_dir / "static" / file_name
+                if (abs_url, local_path) not in resources_to_download:
+                    resources_to_download.append((abs_url, local_path))
+                
+                # Rewrite the path to use Flask's url_for
+                res[attr] = f"{{{{ url_for('static', filename='{file_name}') }}}}"
+
+    # Download all identified assets with a progress bar.
+    with Progress(TextColumn("[progress.description]{task.description}"), BarColumn(), "[progress.percentage]{task.percentage:>3.0f}%", TimeElapsedColumn(), console=console) as progress:
+        task = progress.add_task("[cyan]Downloading assets...[/]", total=len(resources_to_download))
+        for res_url, local_path in resources_to_download:
+            try:
+                res_response = session.get(res_url, stream=True)
+                res_response.raise_for_status()
+                with open(local_path, 'wb') as f:
+                    for chunk in res_response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                progress.update(task, advance=1, description=f"Downloading [green]{local_path.name}[/]")
+            except requests.RequestException:
+                progress.update(task, advance=1, description=f"Skipping [red]{local_path.name}[/]")
+
+    # Save the modified HTML to the templates folder.
+    with open(project_dir / "templates" / "index.html", 'w', encoding='utf-8') as f:
+        f.write(str(soup.prettify()))
+    console.print(f"  [green]✔[/] Processed and saved [cyan]index.html[/]")
+    return True
+
+def setup_environment(project_dir: Path) -> bool:
+    """Creates a Python virtual environment and installs Flask."""
+    console.print(Rule("[bold cyan]Step 3: Setting Up Python Environment[/]"))
+    venv_path = project_dir / "venv"
+    
+    with console.status(f"Creating virtual environment in [cyan]{venv_path}[/]..."):
+        result = env.run_command([sys.executable, "-m", "venv", str(venv_path)])
+        if result.returncode != 0:
+            env.log.error(f"Failed to create virtual environment: {result.stderr}")
+            return False
+    console.print("  [green]✔[/] Virtual environment created.")
+        
+    pip_executable = str(venv_path / "bin" / "pip") if os.name != "nt" else str(venv_path / "Scripts" / "pip.exe")
+    with console.status("Installing Flask..."):
+        result = env.run_command([pip_executable, "install", "flask"])
+        if result.returncode != 0:
+            env.log.error(f"Failed to install Flask: {result.stderr}")
+            return False
+    console.print("  [green]✔[/] Flask installed successfully.")
+    return True
+
+def run_server(project_dir: Path, no_venv_mode: bool):
+    """Runs the newly created Flask server."""
+    console.print(Rule("[bold cyan]Step 4: Launching Server[/]"))
+    
+    if no_venv_mode:
+        python_executable = sys.executable
+        env.log.info("Running server using the global Python interpreter...")
+    else:
+        venv_python_path = project_dir / "venv" / "bin" / "python" if os.name != "nt" else project_dir / "venv" / "Scripts" / "python.exe"
+        if not venv_python_path.exists():
+            env.log.error(f"Virtual environment Python not found at '{venv_python_path}'.")
+            return
+        python_executable = str(venv_python_path)
+
+    app_path = project_dir.resolve() / "app.py"
+    if not app_path.exists():
+        env.log.error("Cannot run server. 'app.py' is missing.")
+        return
+        
+    env.log.info("Server is starting at http://0.0.0.0:5000")
+    env.log.info("Press Ctrl+C to stop.")
+    
+    try:
+        # Use subprocess.run which waits for the command to complete.
+        # For a server, we expect this to run until interrupted.
+        subprocess.run([python_executable, str(app_path)], cwd=str(project_dir.resolve()))
+    except KeyboardInterrupt:
+        # This will be caught by the top-level handler
+        pass
+    except Exception as e:
+        env.log.error(f"Failed to run server: {e}")
+
+def main():
+    """Main entry point, argument parsing, and workflow orchestration."""
+    parser = argparse.ArgumentParser(prog="site-crafter", add_help=False)
+    parser.add_argument("url", nargs='?', help="The URL of the website to clone.")
+    parser.add_argument("-p", "--project", help="The name for the new project directory.")
+    parser.add_argument("-h", "--help", action="store_true")
+    parser.add_argument("--no-venv", action="store_true", help="Skip creating a virtual environment.")
+    parser.add_argument("--run", action="store_true", help="Run the Flask server after creation.")
+    args = parser.parse_args()
+
+    if args.help or not (args.url and args.project):
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "site-crafter"], capture_output=False)
+        return
+
+    if not validators.url(args.url):
+        env.log.error(f"Invalid URL provided: '{args.url}'")
+        sys.exit(1)
+        
+    project_dir = Path(args.project)
+    if project_dir.exists():
+        if not Confirm.ask(f"[bold yellow]Warning:[/] Directory '{project_dir}' already exists. Do you want to overwrite it?"):
+            env.log.warning("Operation cancelled.")
+            return
+
+    # --- Main Workflow ---
+    if not create_project_structure(project_dir): sys.exit(1)
+    if not download_and_process(args.url, project_dir): sys.exit(1)
+    
+    if not args.no_venv:
+        if not setup_environment(project_dir): sys.exit(1)
+            
+    if args.run:
+        run_server(project_dir, args.no_venv)
+    else:
+        console.print(Rule("[bold green]Project Created Successfully![/]", style="green"))
+        if not args.no_venv:
+            activate_cmd = f"source {project_dir.resolve() / 'venv/bin/activate'}" if os.name != "nt" else f"{project_dir.resolve() / 'venv/Scripts/activate'}"
+            console.print("To run your new server, use the following commands:")
+            console.print(f"  1. [cyan]cd {args.project}[/]")
+            console.print(f"  2. [cyan]{activate_cmd}[/]")
+            console.print(f"  3. [cyan]python app.py[/]")
+        else:
+             console.print("To run your new server, use these commands:")
+             console.print(f"  1. [cyan]cd {args.project}[/]")
+             console.print(f"  2. [cyan]pip install flask[/] (if not installed globally)")
+             console.print(f"  3. [cyan]python app.py[/]")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print() # Move to a new line
+        env.log.warning("Operation cancelled by user.")
+        sys.exit(130)

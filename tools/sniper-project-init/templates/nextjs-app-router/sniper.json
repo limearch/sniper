@@ -1,0 +1,1 @@
+{"name":"Next.js App (App Router)","post_init_commands":[{"command":"npx create-next-app@latest . --typescript --eslint --tailwind --src-dir --app --import-alias \"@/*\"","message":"Bootstrapping Next.js project..."}],"next_steps":["cd {{ project_name }}","npm run dev"]}

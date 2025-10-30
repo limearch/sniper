@@ -1,0 +1,52 @@
+{
+    "layout": [
+      {
+        "component": "Panel",
+        "style": "magenta",
+        "content": [{ "component": "Text", "text": "SNIPER: lib-installer - Advanced Python Package Manager", "style": "bold magenta", "justify": "center" }]
+      },
+      { "component": "Text", "text": "[bold]Usage:[/] [yellow]lib-installer[/] [cyan]<COMMAND>[/] [green][ARGUMENTS][/]", "justify": "center" },
+      {
+        "component": "Panel",
+        "title": "[blue]Overview[/]",
+        "style": "blue",
+        "content": [{ "component": "Markup", "text": "A powerful and user-friendly wrapper around 'pip' to search, install, and manage Python packages from PyPI with an enhanced interface." }]
+      },
+      {
+        "component": "Panel",
+        "title": "[cyan]Commands[/]",
+        "style": "cyan",
+        "content": [{
+          "component": "Markup",
+          "text": [
+            "[green]search <package>[/]   Search for a package on PyPI.",
+            "[green]install <package>[/]  Install a package (e.g., [cyan]requests==2.25.1[/]).",
+            "[green]uninstall <package>[/] Uninstall a package.",
+            "[green]info <package>[/]     Show detailed information about a package.",
+            "[green]list[/]                List all installed packages.",
+            "[green]list-outdated[/]       List all outdated packages.",
+            "[green]update <package>[/]   Update a specific package.",
+            "[green]update-all[/]          Update all outdated packages.",
+            "[green]req-install[/]         Install packages from a 'requirements.txt' file.",
+            "[green]req-export[/]          Export installed packages to 'requirements.txt'.",
+            "[green]help[/]                Show this help message."
+          ]
+        }]
+      },
+      {
+        "component": "Panel",
+        "title": "[green]Examples[/]",
+        "style": "green",
+        "content": [{
+          "component": "Markup",
+          "text": [
+            "[#] Install a specific version of a package",
+            "  [yellow]lib-installer[/] [green]install[/] [cyan]\"django<4.0\"[/]",
+            "",
+            "[#] Show detailed information about 'rich'",
+            "  [yellow]lib-installer[/] [green]info[/] [cyan]rich[/]"
+          ]
+        }]
+      }
+    ]
+  }

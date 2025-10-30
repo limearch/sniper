@@ -1,0 +1,158 @@
+# ----------------------------------------
+# General / OS
+# ----------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# ----------------------------------------
+# Editor / IDE
+# ----------------------------------------
+# VS Code
+.vscode/
+.vscode/*
+
+# JetBrains (PyCharm, IntelliJ, GoLand, etc.)
+.idea/
+*.iml
+
+# Sublime
+*.sublime-workspace
+*.sublime-project
+
+# Editors swap/temp files
+*.swp
+*.swo
+*.swn
+
+# ----------------------------------------
+# Python
+# ----------------------------------------
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+pip-wheel-metadata/
+zsh-plugins
+# Packaging / build
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Test / coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+
+# Logs
+*.log
+.update_available
+.last_update_check
+.intro_has_run
+
+# ----------------------------------------
+# Node / JS (if project contains front-end/tools)
+# ----------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ----------------------------------------
+# C / C++ / compiled languages (common for Termux toolkits)
+# ----------------------------------------
+*.o
+*.obj
+*.so
+*.a
+*.dll
+*.exe
+*.out
+*.elf
+*.dSYM/
+*.stackdump
+
+# ----------------------------------------
+# Go / Rust / Java / other build artefacts
+# ----------------------------------------
+# Go
+pkg/
+# Rust
+/target/
+/Cargo.lock
+
+# Java
+*.class
+*.jar
+*.war
+
+# ----------------------------------------
+# Termux-specific / Android dev helpers
+# ----------------------------------------
+.termux/
+*.apk
+*.apks
+*.keystore
+
+# ----------------------------------------
+# Secrets / config
+# ----------------------------------------
+# Ignore runtime/local config and secrets. Keep a config.example.json or similar in repo.
+.env
+.env.*.local
+config.json
+config.local.json
+secrets.json
+*.key
+*.pem
+*.crt
+
+# ----------------------------------------
+# Database / caches
+# ----------------------------------------
+*.sqlite3
+*.db
+*.db-journal
+.cache/
+.cache-*/
+
+# ----------------------------------------
+# Misc
+# ----------------------------------------
+# Temporary files, archives, backups
+*.bak
+*.tmp
+*.sw?
+*.old
+*.orig
+*.zip
+*.tar.gz
+*.rar
+
+# Docker
+docker-compose.override.yml
+*.log
+
+# Recommended: keep an example config file in repo
+# e.g. "config.example.json" with placeholder values (DO NOT ignore that)

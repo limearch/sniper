@@ -1,0 +1,76 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: social-dive - OSINT Username Checker", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]social-dive[/] [cyan]<USERNAME>[/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About social-dive[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A fast, multi-threaded OSINT tool that checks for the existence of a specific",
+          "username across hundreds of websites, presenting the results in real-time."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Primary Argument & Options[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [cyan]<USERNAME>[/]             The username to search for.",
+          "",
+          "  [green]-o, --output <FILE>[/]     Export found accounts to a file ([cyan]txt, csv, json[/]).",
+          "  [green]-c, --category <CAT>[/]    Search only within a specific site category (e.g., Gaming).",
+          "  [green]--list-categories[/]       List all available site categories and exit.",
+          "  [green]-p, --proxy <URL>[/]       Use a proxy for requests (e.g., [dim]http://127.0.0.1:8080[/]).",
+          "  [green]-t, --timeout <SEC>[/]     Set request timeout in seconds (default: 10).",
+          "  [green]-h, --help[/]             Show this help message and exit."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]💡 Examples[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Perform a standard search for a username:",
+          "  [yellow]social-dive[/] [cyan]johndoe[/]",
+          "",
+          "[#] Search only in 'Gaming' sites and save results to a CSV file:",
+          "  [yellow]social-dive[/] [cyan]mastergamer[/] [green]-c Gaming -o results.csv[/]",
+          "",
+          "[#] See all categories you can search within:",
+          "  [yellow]social-dive[/] [green]--list-categories[/]"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[red]⚠️ Accuracy & False Positives[/]",
+      "style": "red",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]Important Note on Accuracy:[/]",
+          "  This tool checks for usernames based on server responses (e.g., status codes,",
+          "  or specific text on a 'not found' page). Many modern websites no longer provide",
+          "  clear 'not found' errors to protect user privacy.",
+          "",
+          "  [bold yellow]⚠️ Be Aware:[/] This can lead to [bold]'False Positives'[/] (reporting an account",
+          "  that doesn't actually exist) or [bold]'False Negatives'[/] (missing an existing account).",
+          "  Always manually verify important results."
+        ]
+      }]
+    }
+  ]
+}

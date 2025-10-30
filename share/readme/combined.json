@@ -1,0 +1,82 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: combined - AI Context Combiner", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]combined[/] [cyan]<SOURCE_DIR>[/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About combined[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A powerful tool to combine multiple source code files from a project into a single",
+          "text or markdown file. It is optimized for providing context to Large Language",
+          "Models (LLMs) by respecting .gitignore, removing comments, and adding summaries."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Primary Argument & Output[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [cyan]<SOURCE_DIR>[/]       Path to the source directory (default: current directory).",
+          "  [green]-o, --output[/]       Name of the output file (default: combined_output.txt).",
+          "  [green]--format <fmt>[/]       Output format: 'text' or 'markdown' (default: text).",
+          "  [green]--copy[/]              Copy the final output to the clipboard instead of saving to a file."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]Content Processing & Filtering[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]--no-comments[/]      Remove comments from supported source code files.",
+          "  [green]--no-empty-lines[/]  Remove empty lines from all files.",
+          "  [green]-i, --include <glob>[/]  Force include files/dirs (glob patterns allowed, e.g., '**/__init__.py').",
+          "  [green]--no-gitignore[/]     Do not use .gitignore rules to exclude files."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]Advanced Features[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]--summary[/]         Prepend a rich project summary (stats, languages, tree) to the output.",
+          "  [green]--cost[/]            Estimate API cost based on token count (for models like GPT-4).",
+          "  [green]-h, --help[/]         Show this help message."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Combine all files in the current directory into a markdown file:",
+          "  [yellow]combined[/] [cyan]./[/] [green]-o context.md --format markdown[/]",
+          "",
+          "[#] Combine a project, add a summary, remove comments, and copy to clipboard:",
+          "  [yellow]combined[/] [cyan]~/dev/my-project[/] [green]--summary --no-comments --copy[/]",
+          "",
+          "[#] Combine only Python files and estimate the cost for GPT-4:",
+          "  [yellow]combined[/] [cyan]./[/] [green]-i '**/*.py' -o py_context.txt --cost[/]"
+        ]
+      }]
+    }
+  ]
+}

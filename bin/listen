@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+# File: bin/listen (REFACTORED - Complete Code)
+# Description: A versatile network listener and simple file server.
+
+import socket
+import sys
+import argparse
+import http.server
+import socketserver
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "listen"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+def start_tcp_listener(host: str, port: int, logfile: str):
+    """Starts a basic TCP listener and handles graceful shutdown."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((host, port))
+            s.listen()
+            env.log.info(f"Listening on {host}:{port}... (Press Ctrl+C to stop)")
+            
+            conn, addr = s.accept()
+            with conn:
+                env.log.info(f"Connection established from {addr[0]}:{addr[1]}")
+                log_handle = None
+                if logfile:
+                    try:
+                        log_handle = open(logfile, "a") 
+                        env.log.info(f"Logging session to '{logfile}'")
+                    except IOError as e:
+                        env.log.error(f"Could not open log file: {e}")
+                
+                while True:
+                    data = conn.recv(1024)
+                    if not data:
+                        break
+                    decoded_data = data.decode('utf-8', errors='ignore')
+                    sys.stdout.write(decoded_data)
+                    sys.stdout.flush()
+                    if log_handle:
+                        log_handle.write(decoded_data)
+                        log_handle.flush()
+
+    except Exception as e:
+        # Catch specific errors for better messages
+        if isinstance(e, PermissionError):
+            env.log.error(f"Permission denied to bind to port {port}. Try a port > 1024 or run as root.")
+        elif isinstance(e, OSError) and "Address already in use" in str(e):
+             env.log.error(f"Port {port} is already in use by another application.")
+        else:
+            env.log.error(f"An unexpected error occurred: {e}")
+    finally:
+        env.log.info("Listener stopped.")
+
+
+def start_http_server(host: str, port: int):
+    """Starts a simple HTTP server."""
+    class QuietHandler(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, format, *args):
+            pass # Suppress logging to the console
+
+    try:
+        with socketserver.TCPServer((host, port), QuietHandler) as httpd:
+            env.log.info(f"Serving HTTP on {host} port {port} (http://{host}:{port}/) ...")
+            env.log.info("Press Ctrl+C to stop.")
+            httpd.serve_forever()
+    except Exception as e:
+        if isinstance(e, PermissionError):
+            env.log.error(f"Permission denied to bind to port {port}. Try a port > 1024 or run as root.")
+        elif isinstance(e, OSError) and "Address already in use" in str(e):
+             env.log.error(f"Port {port} is already in use by another application.")
+        else:
+            env.log.error(f"An unexpected error occurred: {e}")
+    finally:
+        env.log.info("Server stopped.")
+
+def main():
+    """Main entry point, argument parsing, and mode dispatching."""
+    parser = argparse.ArgumentParser(prog="listen", add_help=False)
+    parser.add_argument("port", nargs='?', type=int, help="The port number to listen on.")
+    parser.add_argument("--serve", action="store_true", help="Start a simple HTTP file server.")
+    parser.add_argument("--log", dest="logfile", help="Log all received data to a file (TCP mode).")
+    parser.add_argument('-h', '--help', action='store_true')
+    args = parser.parse_args()
+    
+    if args.help or not args.port:
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "listen"], capture_output=False)
+        return
+
+    HOST = '0.0.0.0'
+    if args.serve:
+        start_http_server(HOST, args.port)
+    else:
+        start_tcp_listener(HOST, args.port, args.logfile)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print() # Move to a new line
+        env.log.warning("Operation cancelled by user.")
+        sys.exit(130)

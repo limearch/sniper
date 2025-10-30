@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+# File: bin/social-dive
+# Description: Entrypoint for the social-dive OSINT tool.
+
+import argparse
+import sys
+from pathlib import Path
+
+# --- START: Core Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    env.log.name = "social-dive"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core Integration ---
+
+# Import the main logic and utils after setting up the environment
+from tools.social_dive.social_dive_tool.core import run_scan
+from tools.social_dive.social_dive_tool.utils import show_rich_help, get_categories
+
+def main():
+    """Parses arguments and runs the scanner."""
+    parser = argparse.ArgumentParser(
+        prog="social-dive",
+        description="An OSINT tool to check for usernames across multiple websites.",
+        add_help=False
+    )
+    parser.add_argument("username", nargs='?', help="The username to search for.")
+    parser.add_argument('-o', '--output', help="Export results to a file (txt, csv, json).")
+    parser.add_argument('-c', '--category', help="Search only within a specific category.")
+    parser.add_argument('--list-categories', action='store_true', help="List all available site categories and exit.")
+    parser.add_argument('-p', '--proxy', help="Use a proxy for requests (e.g., http://127.0.0.1:8080).")
+    parser.add_argument('-t', '--timeout', type=int, default=10, help="Set request timeout in seconds (default: 10).")
+    parser.add_argument('-h', '--help', action='store_true')
+
+    args = parser.parse_args()
+
+    if args.help or (not args.username and not args.list_categories):
+        show_rich_help()
+        return 0
+
+    if args.list_categories:
+        print("Available Categories:")
+        for category in get_categories():
+            print(f"  - {category}")
+        return 0
+    
+    run_scan(args)
+    return 0
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        env.log.warning("Operation cancelled by user.")
+        sys.exit(1)

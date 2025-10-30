@@ -1,0 +1,51 @@
+[
+  {
+    "id": "AWS_ACCESS_KEY",
+    "description": "AWS Access Key ID",
+    "regex": "AKIA[0-9A-Z]{16}",
+    "confidence": "High"
+  },
+  {
+    "id": "AWS_SECRET_KEY",
+    "description": "AWS Secret Access Key",
+    "regex": "[Aa][Ww][Ss](.{0,20})?['\\\"][0-9a-zA-Z\\/\\+]{40}['\\\"]",
+    "confidence": "Medium"
+  },
+  {
+    "id": "PRIVATE_KEY_PEM",
+    "description": "Private Key (PEM format header)",
+    "regex": "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----",
+    "confidence": "High"
+  },
+  {
+    "id": "SLACK_TOKEN",
+    "description": "Slack Token (Legacy and OAuth)",
+    "regex": "(xox[pboar]-[0-9]{10,13}-[0-9]{10,13}-[0-9]{10,13}-[a-f0-9]{32})",
+    "confidence": "Medium"
+  },
+  {
+    "id": "GITHUB_TOKEN",
+    "description": "GitHub Personal Access Token",
+    "regex": "ghp_[0-9a-zA-Z]{36}",
+    "confidence": "High"
+  },
+  {
+    "id": "STRIPE_API_KEY",
+    "description": "Stripe API Key",
+    "regex": "(sk|pk)_(test|live)_[0-9a-zA-Z]{24,99}",
+    "confidence": "High"
+  },
+  {
+    "id": "GENERIC_HIGH_ENTROPY",
+    "description": "Generic secret (high entropy string)",
+    "regex": "(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])[a-zA-Z0-9\\-_\\.!@#$%^&*()+=]{20,64}",
+    "confidence": "Low",
+    "min_entropy": 3.5
+  },
+  {
+    "id": "BASIC_AUTH_URL",
+    "description": "URL with embedded credentials",
+    "regex": "[a-zA-Z]+://[^\\s:@/]+:[^\\s:@/]+@[^\\s]+",
+    "confidence": "Medium"
+  }
+]

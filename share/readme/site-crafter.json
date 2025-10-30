@@ -1,0 +1,40 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: site-crafter - Web to Flask Project Converter", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]site-crafter[/] [cyan]<URL>[/] [green]-p <PROJECT_NAME>[/] [cyan][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]Overview[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]Description:[/b]",
+          "  A powerful tool that downloads a live website and automatically converts",
+          "  it into a fully functional, local Flask project.",
+          "",
+          "[bold]Required Arguments:[/b]",
+          "  [cyan]<URL>[/]                  The full URL of the website to clone.",
+          "  [green]-p, --project <NAME>[/]  The name for the new project directory."
+        ]
+      }]
+    },
+    {
+        "component": "Panel",
+        "title": "[cyan]Options[/]",
+        "style": "cyan",
+        "content": [{
+          "component": "Markup",
+          "text": [
+            "[green]-h, --help[/]             Show this help message and exit.",
+            "[green]--no-venv[/]             Skip the creation of a Python virtual environment.",
+            "[green]--run[/]                 Attempt to run the Flask server after creation."
+          ]
+        }]
+      }
+  ]
+}

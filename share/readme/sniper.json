@@ -1,0 +1,145 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "padding": [1, 0],
+      "content": [{
+        "component": "Text",
+        "text": "SNIPER CLI TOOL",
+        "style": "bold magenta",
+        "justify": "center"
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]About SNIPER[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]SNIPER[/] is a comprehensive command-line environment designed to supercharge your terminal.",
+          "It bundles a powerful suite of integrated tools, shortcuts, and utilities to streamline workflows for developers, penetration testers, and security enthusiasts."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[bold yellow]❯ Shortcuts[/]",
+      "subtitle": "[dim]Shell Aliases[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Columns",
+        "options": { "equal": true, "expand": true },
+        "items": [
+          "[green]c[/]      - Clear screen",
+          "[green]m[/]      - Micro text editor",
+          "[green]n[/]      - Nano text editor",
+          "[green]gc[/]     - Git clone",
+          "[green]ls[/]     - List all files (ls -a)",
+          "[green]l[/]      - List files formatted (ls -CF)",
+          "[green]mk[/]     - Make a new folder",
+          "[green]tu[/]     - Create a new empty file (touch)",
+          "[green]cdsd[/]   - Change directory to sdcard",
+          "[green]cddo[/]   - Change directory to Downloads"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[bold blue]❯ Development & Productivity Tools[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Columns",
+        "options": { "equal": true, "expand": true },
+        "items": [
+          "[green]compress[/]      - Compress files and folders into various formats (zip, tar).",
+          "[green]format[/]        - Auto-format source code files (JSON, Python, etc.).",
+          "[green]sniper-init[/]   - Initialize new project structures for Python, Node.js, and more.",
+          "[green]combinde[/]      - Combine a project's source files into a single text file for AI models.",
+          "[green]run[/]           - A universal runner for executing files from any programming language.",
+          "[green]lib-installer[/] - A simplified installer for Python libraries."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[bold green]❯ Network & Reconnaissance Tools[/]",
+      "style": "green",
+      "content": [{
+        "component": "Columns",
+        "options": { "equal": true, "expand": true },
+        "items": [
+          "[green]fastfind[/]      - An advanced, multi-threaded tool to find files and folders.",
+          "[green]social_devs[/]   - Search for a username across various social media sites.",
+          "[green]net-discover[/]  - Get details about your network and discover connected devices.",
+          "[green]site-crafter[/]        - Download entire web pages or websites for offline analysis.",
+          "[green]iplookup[/]      - Get geographic and network information about an IP address or domain.",
+          "[green]listen[/]        - Listen on a network port or create a temporary local web server.",
+          "[green]scan[/]          - A fast, concurrent port scanner to check for open ports."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[bold cyan]❯ File & System Utilities[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Columns",
+        "options": { "equal": true, "expand": true },
+        "items": [
+          "[green]size[/]          - Display the size of a file or folder.",
+          "[green]file-info[/]     - Show detailed metadata and information about files.",
+          "[green]timer[/]         - Execute any command with a specified timeout.",
+          "[green]lsmap[/]         - Visualize the file and folder structure as an interactive tree.",
+          "[green]view-source[/]   - Display source code with syntax highlighting in the terminal.",
+          "[green]text-image[/]    - Convert any image into ASCII art.",
+          "[green]sniper-crypt[/]  - A powerful tool to encrypt and decrypt any file securely.",
+          "[green]shall-game[/]    - A simple shell game for entertainment."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[bold grey50]❯ In Development[/]",
+      "subtitle": "[dim]Coming Soon[/]",
+      "style": "grey50",
+      "content": [{
+        "component": "Columns",
+        "options": { "equal": true, "expand": true },
+        "items": [
+          "[grey50]ARGUS[/]          - Payload and virus injection framework.",
+          "[grey50]pyprivate[/]      - Encrypt Python source code files.",
+          "[grey50]chmac[/]           - A utility to change your device's MAC address."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[bold red]⚠️ Troubleshooting & Common Errors[/]",
+      "style": "red",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "• [bold red]Command not found[/]: Ensure the SNIPER activation script has been sourced correctly and the tool's 'bin' directories are in your [cyan]$PATH[/].",
+          "• [bold red]Missing Dependencies[/]: Some tools depend on external libraries (like [cyan]rich[/], [cyan]nmap[/], [cyan]shfmt[/]). If a tool fails, check its specific help ([yellow]readme <tool>[/]) for a list of dependencies.",
+          "• [bold red]Permission Denied[/]: Some tools, like [cyan]scan[/] or [cyan]net-discover[/], may require elevated privileges to function correctly."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[bold]System & Help[/]",
+      "style": "white",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]System Commands:[/b]",
+          "  [green]readme[/]              - Displays this main help screen.",
+          "  [green]readme <tool>[/]      - Get detailed help for a specific tool (e.g., [yellow]readme scan[/]).",
+          "  [green]exit[/]                - Stop the SNIPER tool and restore the original shell environment."
+        ]
+      }]
+    }
+  ]
+}

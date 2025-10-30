@@ -1,0 +1,1 @@
+{"name":"Go CLI Application","post_init_commands":[{"command":"go mod init {{ project_name }}","message":"Initializing Go module..."},{"command":"go mod tidy","message":"Tidying dependencies..."}],"next_steps":["cd {{ project_name }}","go run ./cmd/{{ project_name }}"]}

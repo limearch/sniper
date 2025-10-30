@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+# File: tools/file-info/bin/file-info (REFACTORED - Complete Code)
+# Description: The main entrypoint for the file-info tool. This script handles
+# argument parsing, help display, and calls the core analyzer logic.
+
+import argparse
+import sys
+import json
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+# This block ensures that the script can find and import the centralized 'env' object
+# and other necessary modules from the 'lib' and 'tools' directories.
+try:
+    # 1. Determine the project's root directory by traversing up from this file's location.
+    _PROJECT_ROOT = Path(__file__).resolve().parents[3]
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    
+    # 2. Add the specific tool's root directory to the path to find its own modules.
+    _TOOL_ROOT = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(_TOOL_ROOT))
+    
+    # 3. Import the centralized environment and the help rendering function.
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+
+    # 4. Set the logger name for this specific tool to provide context in log messages.
+    env.log.name = "file-info"
+except (ImportError, IndexError):
+    # This is a critical failure. If the environment can't be loaded, the tool cannot run.
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize the SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# Import the main analysis logic after setting up the environment.
+from file_info_tool.core import FileAnalyzer
+
+
+def show_rich_help():
+    """
+    Displays the help screen by loading its UI description from the centralized
+    JSON file (share/readme/file-info.json) and passing it to the central help renderer.
+    """
+    help_file_path = env.ROOT_DIR / "share" / "readme" / "file-info.json"
+    
+    if not help_file_path.is_file():
+        env.log.error(f"Help content file not found at: {help_file_path}")
+        sys.exit(1)
+        
+    try:
+        # Load the JSON data that describes the help screen's layout and content.
+        with open(help_file_path, 'r', encoding='utf-8') as f:
+            help_data = json.load(f)
+            
+        # Call the central renderer with the loaded data object.
+        render_help(help_data)
+        
+    except (json.JSONDecodeError, IOError) as e:
+        # Log any errors that occur during file reading or JSON parsing.
+        env.log.error(f"Failed to load or parse help file '{help_file_path}': {e}")
+        sys.exit(1)
+        
+    # Exit successfully after displaying the help message.
+    sys.exit(0)
+
+
+def main():
+    """
+    Main entry point: handles argument parsing and dispatches to the analyzer.
+    """
+    parser = argparse.ArgumentParser(
+        prog="file-info",
+        description="A comprehensive file and directory analyzer.",
+        add_help=False # We use our own rich help.
+    )
+    parser.add_argument('path', nargs='?', help="The path to the file or directory to analyze.")
+    parser.add_argument('-h', '--help', action='store_true', help="Show this help message.")
+    
+    args = parser.parse_args()
+
+    # Show help if the -h flag is used, or if no path is provided as an argument.
+    if args.help or not args.path:
+        show_rich_help()
+
+    # Create an instance of the analyzer and run the analysis.
+    analyzer = FileAnalyzer()
+    analyzer.analyze(args.path)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        # Handle Ctrl+C gracefully.
+        env.log.warning("Operation cancelled by user.")
+        sys.exit(130)

@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+# File: bin/text-image (REFACTORED - Complete Code)
+# Description: A tool to convert images into ASCII art.
+
+import sys
+import argparse
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "text-image"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    from PIL import Image
+except ImportError:
+    env.log.critical("The 'Pillow' library is not installed. Please run: pip install Pillow")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
+# --- Core Logic ---
+CHARSETS = {
+    "standard": "@%#*+=-:. ",
+    "detailed": "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ",
+    "blocks": "█▓▒░ "
+}
+
+def resize_image(image: Image.Image, new_width=100) -> tuple:
+    # This function's logic remains unchanged.
+    width, height = image.size
+    aspect_ratio = height / width
+    # Adjust for non-square character aspect ratio in terminals
+    new_height = int(aspect_ratio * new_width * 0.55) 
+    resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    return resized_image, new_height
+
+def image_to_ascii(image: Image.Image, charset_key: str, invert: bool, use_color: bool) -> str:
+    # This function's logic remains unchanged.
+    charset = CHARSETS[charset_key]
+    char_ramp = charset[::-1] if invert else charset
+    
+    if use_color:
+        grayscale_image = image.convert("L")
+        grayscale_pixels = grayscale_image.getdata()
+        color_pixels = image.convert("RGB").getdata()
+        
+        color_ascii_str = []
+        for i, p in enumerate(grayscale_pixels):
+            char = char_ramp[int((p / 255) * (len(char_ramp) - 1))]
+            r, g, b = color_pixels[i]
+            # Use 24-bit true color escape codes
+            color_code = f"\033[38;2;{r};{g};{b}m"
+            color_ascii_str.append(color_code + char)
+        return "".join(color_ascii_str) + "\033[0m" # Reset color at the end
+    else:
+        grayscale_image = image.convert("L")
+        pixels = grayscale_image.getdata()
+        return "".join([char_ramp[int((p / 255) * (len(char_ramp) - 1))] for p in pixels])
+
+def format_ascii_string(ascii_str: str, width: int) -> str:
+    # This function's logic remains unchanged.
+    return "\n".join([ascii_str[i:i + width] for i in range(0, len(ascii_str), width)])
+
+def main():
+    """Main entry point, argument parsing, and image processing."""
+    parser = argparse.ArgumentParser(prog="text-image", add_help=False)
+    parser.add_argument("image_path", nargs='?', help="Path to the input image file.")
+    parser.add_argument("-w", "--width", type=int, default=100, help="Width of the output in characters.")
+    parser.add_argument("-o", "--output", help="Path to save the output text file.")
+    parser.add_argument("-i", "--invert", action="store_true", help="Invert character ramp for light backgrounds.")
+    parser.add_argument("-c", "--color", action="store_true", help="Generate 24-bit colored ASCII art.")
+    parser.add_argument("--charset", choices=CHARSETS.keys(), default="standard", help="Character set to use.")
+    parser.add_argument('-h', '--help', action='store_true')
+    args = parser.parse_args()
+
+    if args.help or not args.image_path:
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "text-image"], capture_output=False)
+        return
+
+    try:
+        env.log.info(f"Opening image: {args.image_path}")
+        image = Image.open(args.image_path)
+    except FileNotFoundError:
+        env.log.error(f"The file '{args.image_path}' was not found.")
+        return
+    except Exception as e:
+        env.log.error(f"Could not open or process the image: {e}")
+        return
+
+    env.log.info("Resizing and converting image...")
+    resized_image, _ = resize_image(image, args.width)
+    
+    # Handle color processing correctly.
+    # We don't need a special function for color formatting if we build the string correctly.
+    raw_ascii_string = image_to_ascii(resized_image, args.charset, args.invert, args.color)
+    
+    # The format_ascii_string needs to be aware of color codes.
+    # For now, a simpler approach is to print line by line.
+    # A more robust solution would be a color-aware formatter.
+    # Let's keep it simple and effective.
+    output_string = ""
+    if not args.color:
+        output_string = "\n".join([raw_ascii_string[i:i + resized_image.width] for i in range(0, len(raw_ascii_string), resized_image.width)])
+    else:
+        # Simple print for color to avoid complex parsing of escape codes
+        print(f"\n{raw_ascii_string}\n")
+        output_string = raw_ascii_string # Save the raw string for file output
+    
+    if args.output:
+        env.log.info(f"Saving output to {args.output}...")
+        try:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(output_string)
+            env.log.info(f"ASCII art saved successfully to '{args.output}'")
+        except IOError as e:
+            env.log.error(f"Could not save to file: {e}")
+    elif not args.color:
+        print(f"\n{output_string}\n")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        env.log.warning("Operation cancelled by user.")

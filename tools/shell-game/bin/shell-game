@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+# File: tools/shell-game/bin/shell-game
+# Description: The main entrypoint for the SNIPER shell-game collection.
+# This script is responsible for setting up the environment and handling top-level exceptions.
+
+import sys
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+# This block ensures that the script can find and import the centralized 'env' object
+# and the tool's own modules.
+try:
+    # 1. Add the project's root directory ('sniper/') to Python's path.
+    #    __file__ -> .../sniper/tools/shell-game/bin/shell-game
+    #    parents[3] -> .../sniper/
+    _PROJECT_ROOT = Path(__file__).resolve().parents[3]
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+    # 2. Add the tool's own root directory ('tools/shell-game/') to the path.
+    #    This allows us to cleanly import `from main import Run`.
+    _TOOL_ROOT = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(_TOOL_ROOT))
+    
+    # 3. Import the centralized environment instance.
+    from lib.sniper_env import env
+    
+    # 4. Set the logger name for this specific tool to provide context in log messages.
+    env.log.name = "shell-game"
+except (ImportError, IndexError):
+    # This is a critical failure. If the environment can't be loaded, the tool cannot run.
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize the SNIPER environment.", file=sys.stderr)
+    print("  ↳ Please ensure this tool is run from within the complete SNIPER project structure.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# Import the main application logic after the environment has been successfully set up.
+from main import Run
+
+if __name__ == "__main__":
+    # This top-level try...except block is the primary safety net for the entire application.
+    try:
+        # Execute the main function that contains the game loop.
+        Run()
+    except KeyboardInterrupt:
+        # Handle Ctrl+C gracefully by printing a clean exit message.
+        print("\nExiting shell-game. Goodbye!")
+        sys.exit(0)
+    except Exception as e:
+        # --- CRASH REPORTING ---
+        # If any unexpected error occurs anywhere in the application, it will be caught here.
+        # We use the centralized logger to record the crash.
+        # `exc_info=True` tells the logger to include the full traceback in the log file,
+        # which is invaluable for debugging.
+        env.log.critical(f"The game crashed with an unexpected error: {e}", exc_info=True)
+        
+        # Also print a user-friendly message to the console.
+        print(f"\n\033[1;31m[FATAL ERROR]\033[0m The game has crashed.", file=sys.stderr)
+        print(f"  ↳ A detailed error report has been saved to the sniper-config.log file.", file=sys.stderr)
+        sys.exit(1)

@@ -1,0 +1,200 @@
+# This file is sourced before loading the system shell.
+# The VIRTUAL_ENV variable gives you the Sniper path (if available).
+# If VIRTUAL_ENV is not set, falls back to $HOME.
+
+# Resolve config file (robust fallback)
+if [ -n "$VIRTUAL_ENV" ]; then
+  config_file="${VIRTUAL_ENV}/config/sniper-config.json"
+else
+  config_file="${HOME}/sniper-config.json"
+fi
+
+# --- Shortcuts ---
+alias c="clear"
+alias m="micro"
+alias n="nano"
+alias del="mv -t ~/.trash"
+alias mk="mkdir"
+alias l="ls -CF"
+alias la="ls -a"
+alias su="touch"
+alias vs="view-source"
+alias gc="git clone"
+alias p3i="pip3 install"
+alias p2i="pip2 install"
+alias pi="pip install"
+alias cdsd="cd /sdcard"
+alias cddo="cd /sdcard/Download"
+alias ls='ls --group-directories-first --color=auto -F'
+# --- Colors ---
+if [ -n "${BASH_VERSION:-}" ]; then
+  # Bash colors (escape sequences for PS1)
+  LIGHT_RED="\[\033[1;31m\]"   # fixed (bold red)
+  RED="\[\033[0;31m\]"
+  BLUE="\[\033[0;34m\]"
+  LIGHT_BLUE="\[\033[1;34m\]"
+  GREEN="\[\033[0;32m\]"
+  LIGHT_GREEN="\[\033[1;32m\]"
+  YELLOW="\[\033[1;33m\]"
+  CYAN="\[\033[0;36m\]"
+  END_COLOR="\[\033[0m\]"
+  END_BOLD=""                    # kept as original (no-op for bash)
+  LIVE_PATH="\W"                 # \W = current dir name
+else
+  # Zsh colors (prompt sequences)
+  LIGHT_RED="%B%{%F{red}%}"
+  RED="%B%{%F{red}%}"
+  BLUE="%B%{%F{cyan}%}"
+  LIGHT_BLUE="%B%{%F{blue}%}"
+  GREEN="%B%{%F{green}%}"
+  LIGHT_GREEN="%{%F{green}%}"
+  YELLOW="%B%{%F{yellow}%}"
+  CYAN="%B%{%F{cyan}%}"
+  END_COLOR="%{%f%}"
+  END_BOLD="%{%b%}"
+  LIVE_PATH="%~"                 # %~ = path relative to home
+fi
+
+# --- Read config values safely ---
+# If file missing or jq fails, provide sane defaults.
+if [ -f "$config_file" ]; then
+  PROMPT_USERNAME=$(jq -r '.user.name // "user"' "$config_file" 2>/dev/null)
+  # support both spellings in case config uses permission or premission
+  USER_PREMISSION=$(jq -r '.user.permissions // .user.permission // "user"' "$config_file" 2>/dev/null)
+  theme=$(jq -r '.appearance.theme_prompt // "sniper"' "$config_file" 2>/dev/null)
+else
+  PROMPT_USERNAME="user"
+  USER_PREMISSION="user"
+  theme="sniper"
+fi
+
+# --- Theme Definitions ---
+SNIPER_USER_PROMPT="${BLUE}┌──${BLUE}(${END_BOLD}${LIGHT_BLUE}$PROMPT_USERNAME${BLUE})${END_BOLD}${BLUE}-${BLUE}[${END_BOLD}${END_COLOR}${LIVE_PATH}${BLUE}]${END_BOLD}"$'\n'"${BLUE}└─${LIGHT_BLUE}\$${END_BOLD}${END_COLOR} "
+SNIPER_ROOT_PROMPT="${LIGHT_BLUE}┌──(${END_BOLD}${LIGHT_RED}$PROMPT_USERNAME${LIGHT_BLUE})${END_BOLD}${LIGHT_BLUE}-${LIGHT_BLUE}[${END_BOLD}${END_COLOR}${LIVE_PATH}${LIGHT_BLUE}]${END_BOLD}"$'\n'"${LIGHT_BLUE}└─${RED}# ${END_BOLD}${END_COLOR}"
+
+ARROW_USER_PROMPT="${LIGHT_GREEN}${PROMPT_USERNAME}${END_COLOR}@${LIGHT_BLUE}${LIVE_PATH}${END_COLOR} ${LIGHT_GREEN}>${END_COLOR} "
+ARROW_ROOT_PROMPT="${LIGHT_RED}${PROMPT_USERNAME}${END_COLOR}@${LIGHT_BLUE}${LIVE_PATH}${END_COLOR} ${RED}#${END_COLOR} "
+
+MINIMAL_USER_PROMPT="${CYAN}[${END_COLOR}${LIVE_PATH}${CYAN}]${END_COLOR} \$ "
+MINIMAL_ROOT_PROMPT="${RED}[${END_COLOR}${LIVE_PATH}${RED}]${END_COLOR} # "
+
+POWER_USER_PROMPT="${GREEN}${PROMPT_USERNAME}${END_COLOR} ${YELLOW}>${END_COLOR} ${BLUE}${LIVE_PATH}${END_COLOR} ${YELLOW}>${END_COLOR} \$ "
+POWER_ROOT_PROMPT="${RED}${PROMPT_USERNAME}${END_COLOR} ${YELLOW}>${END_COLOR} ${BLUE}${LIVE_PATH}${END_COLOR} ${YELLOW}>${END_COLOR} # "
+
+# --- Powerlevel10k helper (zsh) ---
+# plugin_dir: expected relative to VIRTUAL_ENV
+_powerlevel10k_plugin_dir() {
+  # prefer VIRTUAL_ENV if present; otherwise try common locations
+  if [ -n "${VIRTUAL_ENV:-}" ]; then
+    printf '%s' "${VIRTUAL_ENV}/share/zsh-plugins/powerlevel10k"
+  else
+    printf '%s' "${HOME}/share/zsh-plugins/powerlevel10k"
+  fi
+}
+
+_powerlevel10k_available() {
+  local dir
+  dir="$(_powerlevel10k_plugin_dir)"
+  [ -d "$dir" ] && { [ -f "$dir/p10k.zsh" ] || [ -f "$dir/powerlevel10k.zsh-theme" ] || [ -f "$dir/powerlevel10k.zsh" ]; }
+}
+
+_enable_powerlevel10k_zsh() {
+  # Only try in zsh
+  if [ -n "${ZSH_VERSION:-}" ] || [ -n "${ZSH_NAME:-}" ] || [ "${SHELL##*/}" = "zsh" ]; then
+    local dir
+    dir="$(_powerlevel10k_plugin_dir)"
+    if [ -d "$dir" ]; then
+      # source most common entry files if present (safe, quiet)
+      if [ -f "$dir/p10k.zsh" ]; then
+        # p10k configuration file
+        # shellcheck disable=SC1090
+        . "$dir/p10k.zsh" 2>/dev/null || true
+        return 0
+      elif [ -f "$dir/powerlevel10k.zsh-theme" ]; then
+        # some installations provide this file
+        # shellcheck disable=SC1090
+        . "$dir/powerlevel10k.zsh-theme" 2>/dev/null || true
+        return 0
+      elif [ -f "$dir/powerlevel10k.zsh" ]; then
+        # alternative name
+        # shellcheck disable=SC1090
+        . "$dir/powerlevel10k.zsh" 2>/dev/null || true
+        return 0
+      else
+        # nothing to source but dir exists
+        return 1
+      fi
+    fi
+    return 1
+  fi
+  return 1
+}
+
+# --- Prompt selection logic ---
+if [ -z "${VIRTUAL_ENV_DISABLE_PROMPT:-}" ]; then
+  _OLD_VIRTUAL_PS1="${PS1:-}"
+
+  # normalize comparisons and ensure variables quoted
+  case "$theme" in
+    "sniper")
+      if [ "$USER_PREMISSION" = "root" ]; then
+        PS1="$SNIPER_ROOT_PROMPT"
+      else
+        PS1="$SNIPER_USER_PROMPT"
+      fi
+      ;;
+    "arrow")
+      if [ "$USER_PREMISSION" = "root" ]; then
+        PS1="$ARROW_ROOT_PROMPT"
+      else
+        PS1="$ARROW_USER_PROMPT"
+      fi
+      ;;
+    "minimal")
+      if [ "$USER_PREMISSION" = "root" ]; then
+        PS1="$MINIMAL_ROOT_PROMPT"
+      else
+        PS1="$MINIMAL_USER_PROMPT"
+      fi
+      ;;
+    "power")
+      if [ "$USER_PREMISSION" = "root" ]; then
+        PS1="$POWER_ROOT_PROMPT"
+      else
+        PS1="$POWER_USER_PROMPT"
+      fi
+      ;;
+    "powerlevel10k")
+      # Try to enable powerlevel10k only when using zsh and the plugin dir exists
+      if _enable_powerlevel10k_zsh; then
+        # For zsh + powerlevel10k we do NOT set PS1 here — the theme manages prompt.
+        # If p10k loaded successfully, leave prompt to it.
+        :
+      else
+        # Fallback: if not zsh or plugin missing, revert to "power" theme (user-level)
+        if [ "$USER_PREMISSION" = "root" ]; then
+          PS1="$POWER_ROOT_PROMPT"
+        else
+          PS1="$POWER_USER_PROMPT"
+        fi
+      fi
+      ;;
+    *)
+      # default
+      if [ "$USER_PREMISSION" = "root" ]; then
+        PS1="$SNIPER_ROOT_PROMPT"
+      else
+        PS1="$SNIPER_USER_PROMPT"
+      fi
+      ;;
+  esac
+fi
+VIRTUAL_ENV_PROMPT="sniper"
+export VIRTUAL_ENV_PROMPT
+# Cleanup helper variables (keep PS1)
+unset LIGHT_RED RED BLUE LIGHT_BLUE GREEN LIGHT_GREEN YELLOW CYAN END_COLOR END_BOLD LIVE_PATH
+unset SNIPER_USER_PROMPT SNIPER_ROOT_PROMPT ARROW_USER_PROMPT ARROW_ROOT_PROMPT
+unset MINIMAL_USER_PROMPT MINIMAL_ROOT_PROMPT POWER_USER_PROMPT POWER_ROOT_PROMPT
+unset PROMPT_USERNAME USER_PREMISSION theme  config_file
+# keep powerlevel10k helper functions in memory if needed
+

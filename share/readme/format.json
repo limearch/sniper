@@ -1,0 +1,101 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: format - Universal Code Formatter", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]format[/] [cyan]<PATH>[/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About format[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A powerful, multi-language code formatter that leverages dedicated backend tools",
+          "to standardize code style across your projects. It supports parallel processing",
+          "for speed and a 'check mode' for CI/CD integration."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]⚠️ Dependencies[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "This tool acts as a wrapper. You must have the specific formatters installed:",
+          "  • [bold]Python (.py):[/] [cyan]autopep8[/]",
+          "  • [bold]Shell (.sh):[/] [cyan]shfmt[/]",
+          "  • [bold]C/C++ (.c, .h, .cpp):[/] [cyan]clang-format[/]",
+          "  • [bold]JSON (.json):[/] [dim]Built-in, no dependency[/]"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Core Options[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [cyan]<PATH>[/]                The file or directory to format.",
+          "  [green]-f, --filter <.ext>[/]     Only format files with these extensions (e.g., [cyan]-f .py .js[/]).",
+          "  [green]-s, --spaces <N>[/]      Number of spaces for indentation (default: 4).",
+          "  [green]-b, --backup[/]         Create a '.bak' backup of each file before formatting.",
+          "  [green]-v, --verbose[/]        Enable verbose output to see file processing details."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]CI/CD & Advanced Features[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-c, --check[/]          'Check mode'. Don't modify files, just report which ones need",
+          "                       formatting and exit with a non-zero code if any do.",
+          "  [green]-p, --parallel[/]       Enable parallel processing to format multiple files at once,",
+          "                       significantly speeding up large projects."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Format all supported files in the current directory recursively:",
+          "  [yellow]format[/] [cyan]./[/]",
+          "",
+          "[#] Format a single Python file with 2-space indents:",
+          "  [yellow]format[/] [cyan]my_script.py[/] [green]-s 2[/]",
+          "",
+          "[#] Check if any .sh or .c files in a project need formatting (for CI):",
+          "  [yellow]format[/] [cyan]~/my-project/[/] [green]--check -f .sh .c[/]",
+          "",
+          "[#] Format a large codebase quickly using parallel processing:",
+          "  [yellow]format[/] [cyan]./[/] [green]-p -v[/]"
+        ]
+      }]
+    },
+    {
+        "component": "Panel",
+        "title": "[red]Common Errors & Troubleshooting[/]",
+        "style": "red",
+        "content": [{
+            "component": "Markup",
+            "text": [
+                "  • [bold]\"Command 'shfmt' not found\":[/] You are trying to format a file type whose formatter is not installed. See the Dependencies section.",
+                "  • [bold]\"No files found to process\":[/] The path is incorrect, or your '--filter' option does not match any files in the directory.",
+                "  • [bold]Formatting seems incorrect?:[/] The tool relies on default styles of the backend formatters. For advanced styling, configure those tools directly (e.g., with a [cyan].clang-format[/] file)."
+            ]
+        }]
+    }
+  ]
+}

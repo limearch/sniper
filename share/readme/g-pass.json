@@ -1,0 +1,108 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: g-pass - Advanced Hybrid Password Generator", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]g-pass[/] [green][MODE][/] [cyan][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About g-pass[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]g-pass[/] is a powerful password generator built on a hybrid C++/Python architecture.",
+          "It combines the raw speed of [bold cyan]C++[/] for high-performance permutation in [bold]Crunch Mode[/] with the",
+          "intelligence of [bold yellow]Python[/] for Smart Mode and advanced file handling."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Execution Modes[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-i, --interactive[/]         Launch an interactive wizard to configure generation.",
+          "  [green]--smart \"<prompt>\"[/]       Generate a password based on a text description (e.g., \"a strong wifi password\").",
+          "  [green]-p, --preset <name>[/]        Use a predefined template for common scenarios.",
+          "                         [dim]Presets available: [cyan]human, email, wifi, random[/][/]"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]Fast Mode (Default)[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-l, --length <N>[/]           Set password length (default: 16).",
+          "  [green]-n, --count <N>[/]            Generate N passwords (default: 1).",
+          "  [green]-e, --exclude <chars>[/]      Exclude specific characters (e.g., \"Il1O0\").",
+          "  [green]--no-lower[/]                 Exclude lowercase letters.",
+          "  [green]--no-upper[/]                 Exclude uppercase letters.",
+          "  [green]--no-numbers[/]               Exclude numbers.",
+          "  [green]--no-symbols[/]               Exclude symbols.",
+          "  [green]--unicode[/]                  Include a sample of Unicode characters."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]Crunch Mode (C++ Core)[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]--crunch <min> <max> <charset>[/] Generate all combinations from a charset.",
+          "                                 [dim]Example: --crunch 3 4 abc1[/]",
+          "  [green]--crunch-pattern <pattern>[/]  Generate combinations based on a pattern.",
+          "                                 [dim]Placeholders: [cyan]@[/](lower), [cyan],[/](upper), [cyan]%[/](num), [cyan]^[/](symbol)[/]",
+          "                                 [dim]Example: --crunch-pattern 'PASS-@@%%'[/]"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[blue]Output & Saving[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]--save <FILE>[/]               Save passwords to a file ([cyan]txt, json, csv[/]).",
+          "  [green]--split-size <SIZE>[/]         Automatically split large output files from Crunch Mode.",
+          "                         [dim]Example: 100M, 2G, 512K[/]",
+          "  [green]-c, --copy[/]                  Copy the first generated password to the clipboard."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Generate a 20-char password without symbols and copy it:",
+          "  [yellow]g-pass -l 20 --no-symbols -c[/]",
+          "",
+          "[#] Use the 'human' preset for a memorable passphrase:",
+          "  [yellow]g-pass -p human[/]",
+          "",
+          "[#] Let the AI create a password for a secure context:",
+          "  [yellow]g-pass --smart \"a very strong password for my crypto wallet\"[/]",
+          "",
+          "[#] Run crunch mode to generate all 4-digit PINs and save to a file:",
+          "  [yellow]g-pass --crunch 4 4 0123456789 --save pins.txt[/]",
+          "",
+          "[#] Create a wordlist based on a pattern and split it into 50MB files:",
+          "  [yellow]g-pass --crunch-pattern 'user-@@%%' --save wordlist.txt --split-size 50M[/]"
+        ]
+      }]
+    }
+  ]
+}

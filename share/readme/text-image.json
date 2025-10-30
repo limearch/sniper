@@ -1,0 +1,42 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: Text-Image Converter", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]text-image[/] [cyan]<IMAGE_PATH>[/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]Options[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]Arguments:[/b]",
+          "  [cyan]<IMAGE_PATH>[/]       Path to the input image file.",
+          "",
+          "[bold]Options:[/b]",
+          "  [green]-w, --width[/]        Width of the output in characters (default: 100).",
+          "  [green]-c, --color[/]        Generate 24-bit colored ASCII art.",
+          "  [green]-i, --invert[/]       Invert character ramp, useful for light backgrounds.",
+          "  [green]--charset <name>[/]   Character set to use (standard, detailed, blocks).",
+          "  [green]-o, --output <FILE>[/] Path to save the output text file.",
+          "  [green]-h, --help[/]         Show this help message and exit."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Generate detailed, colored art and save it",
+          "  [yellow]text-image[/] [cyan]logo.png[/] [green]-w 150 --charset detailed -c -o art.txt[/]"
+        ]
+      }]
+    }
+  ]
+}

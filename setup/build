@@ -1,0 +1,213 @@
+#!/bin/bash
+
+# ==============================================================================
+# SNIPER: Dynamic Build, Clean & Permissions Script v2.0
+#
+# This script dynamically discovers and manages all buildable and executable
+# components within the SNIPER project. It eliminates the need for manual
+# lists and provides a robust, centralized build system.
+# ==============================================================================
+
+# --- Configuration & Globals ---
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
+
+# Directories to scan for components
+TOOLS_DIR="$PROJECT_ROOT/tools"
+BIN_DIR="$PROJECT_ROOT/bin"
+
+# --- Colors for Output ---
+C_RED='\033[0;31m'
+C_GREEN='\033[0;32m'
+C_YELLOW='\033[0;33m'
+C_BLUE='\033[0;36m'
+C_MAGENTA='\033[0;35m'
+C_RESET='\033[0m'
+C_BOLD='\033[1m'
+C_GREY='\033[90m'
+
+# --- State Management ---
+SUCCESS_COUNT=0
+FAIL_COUNT=0
+SKIP_COUNT=0
+TOTAL_OPS=0
+
+# --- Helper Functions ---
+
+print_header() {
+    echo -e "${C_MAGENTA}╭────────────────────────────────────────╮${C_RESET}"
+    echo -e "${C_MAGENTA}│   SNIPER: Dynamic Build Utility v2.0   │${C_RESET}"
+    echo -e "${C_MAGENTA}╰────────────────────────────────────────╯${C_RESET}"
+}
+
+report_status() {
+    local action="$1"
+    local target="$2"
+    local exit_code="$3"
+    local output="$4"
+    
+    TOTAL_OPS=$((TOTAL_OPS + 1))
+    
+    if [ "$exit_code" -eq 0 ]; then
+        echo -e "\r  [${C_GREEN}✔${C_RESET}] ${C_GREEN}Success:${C_RESET} ${action} '${target}' completed.                                "
+        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+    else
+        echo -e "\r  [${C_RED}✘${C_RESET}] ${C_RED}Failure:${C_RESET} ${action} '${target}' failed."
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+        if [[ -n "$output" ]]; then
+            echo -e "${C_GREY}--- Error Output ---\n${output}\n--- End Output ---${C_RESET}" | sed 's/^/    /g'
+        fi
+    fi
+}
+
+# --- Core Dynamic Functions ---
+
+# Dynamically finds all tools with a Makefile
+find_buildable_tools() {
+    find "$TOOLS_DIR" -mindepth 1 -maxdepth 1 -type d -exec test -f '{}/Makefile' \; -print
+}
+
+# Dynamically finds all executable scripts (Python, Shell, etc.)
+find_executable_scripts() {
+    # Find all files within any 'bin' directory, plus any .sh or .py file project-wide.
+    # This is robust and doesn't rely on pre-existing permissions.
+    find "$PROJECT_ROOT" -type f \( \
+        -path "$BIN_DIR/*" -o \
+        -path "$TOOLS_DIR/*/bin/*" -o \
+        -name "*.sh" -o \
+        -name "*.py" \
+    \) 2>/dev/null
+}
+
+# Manages 'make' commands for buildable tools
+manage_make_commands() {
+    local action=$1
+    local make_target=$2
+    
+    echo -e "\n${C_BLUE}--- ${action}ing Buildable Tools (C/C++) ---${C_RESET}"
+    
+    local buildable_tools=$(find_buildable_tools)
+    if [[ -z "$buildable_tools" ]]; then
+        echo "  [${C_YELLOW}i${C_RESET}] No tools with a Makefile found to ${make_target}."
+        return
+    fi
+    
+    for tool_path in $buildable_tools; do
+        local tool_name=$(basename "$tool_path")
+        echo -en "  ${C_GREY}❯ ${action}ing '${C_BOLD}${tool_name}${C_RESET}${C_GREY}'...${C_RESET}"
+
+        # Ensure the 'bin' directory exists before building
+        if [[ "$make_target" == "all" || "$make_target" == "build" ]]; then
+            mkdir -p "${tool_path}/bin"
+        fi
+
+        local output
+        output=$(make -C "$tool_path" "$make_target" 2>&1)
+        report_status "${action}ing" "${tool_name}" $? "$output"
+    done
+}
+
+# Sets or removes executable permissions for all scripts and binaries
+manage_permissions() {
+    local mode=$1
+    local action_desc=""
+    [[ "$mode" == "+x" ]] && action_desc="Setting" || action_desc="Removing"
+    
+    echo -e "\n${C_BLUE}--- ${action_desc} Executable Permissions ---${C_RESET}"
+    
+    # Scripts first
+    local scripts=$(find_executable_scripts)
+    if [[ -n "$scripts" ]]; then
+        for script_path in $scripts; do
+            local script_name=$(basename "$script_path")
+            echo -en "  ${C_GREY}❯ Script: '${C_BOLD}${script_name}${C_RESET}${C_GREY}'...${C_RESET}"
+            chmod "$mode" "$script_path"
+            report_status "Permission" "${script_name}" $? ""
+        done
+    fi
+
+    # Compiled binaries next
+    local buildable_tools=$(find_buildable_tools)
+    if [[ -n "$buildable_tools" ]]; then
+        for tool_path in $buildable_tools; do
+            # Find any file inside the 'bin' directory of the tool
+            find "${tool_path}/bin" -mindepth 1 -maxdepth 1 -type f 2>/dev/null | while read -r binary_path; do
+                if [[ -f "$binary_path" ]]; then
+                    local binary_name=$(basename "$binary_path")
+                    echo -en "  ${C_GREY}❯ Binary: '${C_BOLD}${binary_name}${C_RESET}${C_GREY}'...${C_RESET}"
+                    chmod "$mode" "$binary_path"
+                    report_status "Permission" "${binary_name}" $? ""
+                fi
+            done
+        done
+    fi
+}
+
+# --- Main Actions ---
+
+build_all() {
+    manage_make_commands "Build" "all"
+    manage_permissions "+x"
+}
+
+clean_all() {
+    manage_permissions "-x"
+    manage_make_commands "Clean" "clean"
+}
+
+print_final_report() {
+    echo -e "\n${C_MAGENTA}╭──────────────────╮${C_RESET}"
+    echo -e "${C_MAGENTA}│   Final Report   │${C_RESET}"
+    echo -e "${C_MAGENTA}╰──────────────────╯${C_RESET}"
+    echo -e "  Total: ${C_BOLD}${TOTAL_OPS}${C_RESET} | ${C_GREEN}Successful: ${SUCCESS_COUNT}${C_RESET} | ${C_RED}Failed: ${FAIL_COUNT}${C_RESET}"
+    echo "--------------------"
+
+    if [ $FAIL_COUNT -eq 0 ]; then
+        echo -e "${C_GREEN}${C_BOLD}✅ All operations completed successfully!${C_RESET}"
+    else
+        echo -e "${C_RED}${C_BOLD}❌ Some operations failed. Please review the errors above.${C_RESET}"
+    fi
+}
+
+show_help() {
+    print_header
+    echo -e "\n  Dynamically builds, cleans, and manages permissions for the SNIPER project.\n"
+    echo -e "  ${C_BOLD}USAGE:${C_RESET}"
+    echo -e "    ${C_YELLOW}./setup/build${C_RESET} [command]\n"
+    echo -e "  ${C_BOLD}COMMANDS:${C_RESET}"
+    echo -e "    (no command)    Builds all tools and sets executable permissions."
+    echo -e "    ${C_GREEN}build${C_RESET}          Alias for the default build action (default)."
+    echo -e "    ${C_RED}clean${C_RESET}          Removes build artifacts and executable permissions."
+    echo -e "    ${C_BLUE}help${C_RESET}           Shows this help message."
+}
+
+# --- Main Execution Logic ---
+
+print_header
+
+ACTION="${1:-build}" # Default to 'build' if no argument is provided
+
+case "$ACTION" in
+    build)
+        build_all
+        ;;
+    clean)
+        clean_all
+        ;;
+    help)
+        show_help
+        exit 0
+        ;;
+    *)
+        echo -e "\n${C_RED}Error: Unknown command '${ACTION}'.${C_RESET}"
+        show_help
+        exit 1
+        ;;
+esac
+
+print_final_report
+
+if [ $FAIL_COUNT -ne 0 ]; then
+    exit 1
+fi
+

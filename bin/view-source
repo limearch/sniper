@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+# File: bin/view-source (REFACTORED - Complete Code)
+# Description: A robust source code viewer that uses the centralized SNIPER
+# environment for configuration and help display.
+
+import sys
+import argparse
+import os
+import json
+from pathlib import Path
+from datetime import datetime
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "view-source"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    from rich.console import Console
+    from rich.syntax import Syntax
+    from rich.panel import Panel
+    from rich.text import Text
+    from rich.columns import Columns
+    from pygments.styles import get_all_styles
+except ImportError as e:
+    env.log.critical(f"A required library is missing: '{e.name}'. Please run: pip install {e.name}")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
+# --- Global Configuration ---
+console = Console()
+DEFAULT_THEME = "monokai"
+
+def show_rich_help():
+    """
+    Displays the help screen by loading its UI description from the centralized
+    JSON file and passing it to the central help renderer.
+    """
+    help_file_path = env.ROOT_DIR / "share" / "readme" / "view-source.json"
+    if not help_file_path.is_file():
+        env.log.error(f"Help content file not found at: {help_file_path}")
+        sys.exit(1)
+    try:
+        with open(help_file_path, 'r', encoding='utf-8') as f:
+            help_data = json.load(f)
+        
+        # Dynamically insert the current default theme into the help text
+        default_theme = env.config.get("view-source", {}).get("default_theme", DEFAULT_THEME)
+        for panel in help_data.get("layout", []):
+            if panel.get("title") == "[blue]Details[/]":
+                for item in panel.get("content", []):
+                    if item.get("component") == "Markup":
+                        updated_text = [
+                            line.replace("<THEME>", f"[bold]{default_theme}[/]") if "<THEME>" in line else line
+                            for line in item.get("text", [])
+                        ]
+                        item["text"] = updated_text
+                        break
+                break
+
+        render_help(help_data)
+    except (json.JSONDecodeError, IOError) as e:
+        env.log.error(f"Failed to load or parse help file '{help_file_path}': {e}")
+        sys.exit(1)
+    sys.exit(0)
+
+def set_default_theme(theme_name: str):
+    """
+    Sets the default theme in sniper-config.json and logs the change.
+    """
+    config_copy = env.config.copy()
+    config_copy.setdefault('view-source', {})['default_theme'] = theme_name
+    
+    if env.save_config(config_copy, change_source="view-source"):
+        # Log the specific change using the dedicated function.
+        env.log_config_update(
+            action="SET",
+            category="view-source",
+            key="default_theme",
+            value=theme_name,
+            source="view-source"
+        )
+        console.print(f"✅ Default theme set to '[bold green]{theme_name}[/bold green]'.")
+    else:
+        # The save_config function already logs the error.
+        console.print(f"❌ Failed to set default theme.")
+
+def detect_lexer_from_shebang(file_path: str) -> str | None:
+    """Detects the programming language from the shebang line (e.g., #!/usr/bin/python)."""
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            first_line = f.readline().strip()
+        if first_line.startswith("#!"):
+            # A simple map to guess the lexer from the shebang.
+            shebang_map = {"python": "python", "bash": "bash", "sh": "bash", "node": "javascript", "ruby": "ruby", "perl": "perl"}
+            for key, lexer in shebang_map.items():
+                if key in first_line:
+                    return lexer
+    except IOError:
+        return None
+    return None
+
+def display_source_code(file_path: str, theme: str, show_line_numbers: bool, word_wrap: bool):
+    """Reads and displays a file with syntax highlighting using Rich."""
+    if not Path(file_path).is_file():
+        env.log.error(f"Path is not a valid file: '{file_path}'")
+        return
+    
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            code = f.read()
+            
+        # Guess the lexer, falling back to shebang detection or plain text.
+        lexer_name = Syntax.guess_lexer(file_path, code=code)
+        if lexer_name == "text":
+            lexer_name = detect_lexer_from_shebang(file_path) or "text"
+
+        syntax = Syntax(code, lexer_name, theme=theme, line_numbers=show_line_numbers, word_wrap=word_wrap)
+        
+        console.rule(f"[bold cyan]Source: {file_path} | Theme: {theme}[/bold cyan]", style="cyan")
+        console.print(syntax)
+        console.rule(style="cyan")
+    except Exception as e:
+        env.log.error(f"Could not process the file: {e}")
+        env.log.info("The file might be binary or have an unsupported text encoding.")
+
+def list_themes():
+    """Displays all available Pygments syntax highlighting themes."""
+    console.print(Panel(Text("Available Color Themes", justify="center", style="bold yellow")))
+    # Use Rich Columns for a clean, multi-column layout.
+    console.print(Columns(sorted(list(get_all_styles())), equal=True, expand=True))
+    
+def main():
+    """Main entry point, argument parsing, and command dispatching."""
+    default_theme = env.config.get("view-source", {}).get("default_theme", DEFAULT_THEME)
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("file_path", nargs='?', help="Path to the source code file.")
+    parser.add_argument("-t", "--theme", default=default_theme, help=f"Color theme (default: {default_theme}).")
+    parser.add_argument("-n", "--no-lines", action="store_false", dest="line_numbers", help="Disable line numbers.")
+    parser.add_argument("-w", "--no-wrap", action="store_false", dest="word_wrap", help="Disable word wrapping.")
+    parser.add_argument('-h', '--help', action='store_true')
+    parser.add_argument('--list-themes', action='store_true')
+    parser.add_argument('--set-default-theme', metavar="THEME", help='Set and save a new default theme.')
+    args = parser.parse_args()
+
+    # --- Command Dispatching ---
+    if args.list_themes:
+        list_themes()
+    elif args.set_default_theme:
+        theme_name = args.set_default_theme
+        if theme_name in list(get_all_styles()):
+            set_default_theme(theme_name)
+        else:
+            env.log.error(f"Theme '{theme_name}' is not a valid theme.")
+            env.log.info("Use --list-themes to see all available options.")
+    elif args.help or not args.file_path:
+        show_rich_help()
+    else:
+        display_source_code(args.file_path, args.theme, args.line_numbers, args.word_wrap)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        env.log.warning("Operation cancelled by user.")
+        sys.exit(130)

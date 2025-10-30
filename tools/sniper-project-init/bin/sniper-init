@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+# bin/sniper-init
+# This script serves as a simple launcher for development purposes.
+# When the package is installed via pip, the entry point in pyproject.toml is used instead.
+
+import os
+import sys
+
+# Add the project's root directory (one level up from 'bin') to the Python path.
+# This allows finding the 'project_init' package when running the script directly
+# without installing it.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from project_init.cli import main
+
+if __name__ == "__main__":
+    main()

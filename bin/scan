@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+# File: bin/scan (REFACTORED - Complete Code)
+# Description: A fast, multi-threaded TCP port scanner.
+
+import sys
+import argparse
+import socket
+from queue import Queue
+import threading
+import re
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "scan"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    from tqdm import tqdm
+except ImportError:
+    env.log.critical("The 'tqdm' library is required for the progress bar. Please run: pip install tqdm")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
+# --- Core Data and Globals ---
+COMMON_SERVICES = {
+    21: "FTP", 22: "SSH", 23: "Telnet", 25: "SMTP", 53: "DNS", 80: "HTTP", 443: "HTTPS",
+    3306: "MySQL", 3389: "RDP", 5900: "VNC", 8080: "HTTP-Proxy"
+}
+# A smaller, more relevant list for faster scans.
+TOP_PORTS = [21, 22, 23, 25, 53, 80, 110, 139, 143, 443, 445, 993, 995, 1723, 3306, 3389, 5900, 8080]
+
+scan_results = {}
+print_lock = threading.Lock()
+port_queue = Queue()
+
+def scan_port(host: str, port: int, timeout: float, grab_banner: bool):
+    """Attempts to connect to a single port and grabs a banner if requested."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            if sock.connect_ex((host, port)) == 0:
+                banner = None
+                if grab_banner:
+                    try:
+                        # Send a generic probe
+                        sock.sendall(b'GET / HTTP/1.0\r\n\r\n')
+                        banner = sock.recv(1024).decode('utf-8', errors='ignore').strip().split('\n')[0]
+                    except (socket.timeout, ConnectionResetError):
+                        banner = "Connected (No Banner)"
+                service = COMMON_SERVICES.get(port, "Unknown")
+                with print_lock:
+                    scan_results[port] = {"service": service, "banner": banner}
+    except (socket.error, OSError):
+        pass # Silently ignore connection errors
+
+def worker(target_ip: str, timeout: float, grab_banner: bool, pbar: tqdm):
+    """Worker thread function to pull ports from the queue and scan them."""
+    while not port_queue.empty():
+        try:
+            port = port_queue.get_nowait()
+            scan_port(target_ip, port, timeout, grab_banner)
+            port_queue.task_done()
+            pbar.update(1)
+        except Queue.Empty:
+            continue
+
+def parse_ports(ports_str: str, use_top_ports: bool) -> list:
+    """Parses a port string (e.g., '22,80,100-200') into a list of integers."""
+    if use_top_ports: return TOP_PORTS
+    ports = set()
+    if not ports_str: return []
+    try:
+        for part in ports_str.split(','):
+            part = part.strip()
+            if '-' in part:
+                start, end = map(int, part.split('-'))
+                if 0 < start <= end < 65536:
+                    ports.update(range(start, end + 1))
+            else:
+                port_num = int(part)
+                if 0 < port_num < 65536:
+                    ports.add(port_num)
+        return sorted(list(ports))
+    except ValueError:
+        raise ValueError(f"Invalid port format: '{ports_str}'")
+
+def main():
+    """Main entry point, argument parsing, and scan orchestration."""
+    parser = argparse.ArgumentParser(prog="scan", add_help=False)
+    parser.add_argument("host", nargs='?', help="The target host IP or domain.")
+    port_group = parser.add_mutually_exclusive_group()
+    port_group.add_argument("-p", "--ports", help="Ports to scan (e.g., '22,80' or '1-1024').")
+    port_group.add_argument("--top-ports", action="store_true", help=f"Scan the top {len(TOP_PORTS)} most common ports.")
+    parser.add_argument("-w", "--workers", type=int, default=100, help="Number of concurrent threads.")
+    parser.add_argument("-t", "--timeout", type=float, default=0.5, help="Connection timeout in seconds.")
+    parser.add_argument("-b", "--banner", action="store_true", help="Attempt to grab service banners.")
+    parser.add_argument("-o", "--output", help="Save the scan output to a file.")
+    parser.add_argument('-h', '--help', action='store_true')
+    
+    args = parser.parse_args()
+
+    if args.help or not args.host:
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "scan"], capture_output=False)
+        return
+
+    if not args.ports and not args.top_ports:
+        env.log.error("You must specify which ports to scan. Use -p or --top-ports.")
+        return
+
+    try:
+        target_ip = socket.gethostbyname(args.host)
+    except socket.gaierror:
+        env.log.error(f"Could not resolve hostname: '{args.host}'")
+        return
+
+    try:
+        ports_to_scan = parse_ports(args.ports, args.top_ports)
+        if not ports_to_scan:
+            env.log.error("No valid ports specified.")
+            return
+    except ValueError as e:
+        env.log.error(str(e))
+        return
+
+    env.log.info(f"Scanning target: {args.host} ({target_ip})")
+    env.log.info(f"Ports: {len(ports_to_scan)}, Workers: {args.workers}, Timeout: {args.timeout}s")
+
+    for port in ports_to_scan:
+        port_queue.put(port)
+
+    with tqdm(total=len(ports_to_scan), desc="Scanning", unit="port") as pbar:
+        threads = [threading.Thread(target=worker, args=(target_ip, args.timeout, args.banner, pbar), daemon=True) for _ in range(args.workers)]
+        for t in threads: t.start()
+        for t in threads: t.join()
+
+    # --- Reporting ---
+    output_lines = []
+    open_ports = sorted(scan_results.keys())
+    
+    if open_ports:
+        output_lines.append(f"\nScan complete. Found {len(open_ports)} open port(s):")
+        output_lines.append(f"{'PORT':<10}{'SERVICE':<15}{'BANNER'}")
+        output_lines.append(f"{'----':<10}{'-------':<15}{'------'}")
+        for port in open_ports:
+            res = scan_results[port]
+            banner = (res['banner'] or "").replace('\r', '')
+            output_lines.append(f"\033[1m{port:<10}\033[0m{res['service']:<15}\033[36m{banner}\033[0m")
+    else:
+        output_lines.append("\nScan complete. No open ports found.")
+
+    final_output = "\n".join(output_lines)
+    print(final_output)
+
+    if args.output:
+        try:
+            with open(args.output, "w", encoding="utf-8") as f:
+                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+                f.write(ansi_escape.sub('', final_output))
+            env.log.info(f"Results saved to '{args.output}'")
+        except IOError as e:
+            env.log.error(f"Could not save to file: {e}")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nScan aborted by user.")
+        env.log.warning("Scan aborted by user.")

@@ -1,0 +1,90 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: py-shroud - Python Source Code Obfuscator", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]py-shroud[/] [cyan]<INPUT_FILE>[/] [green]-o <OUTPUT_FILE>[/] [cyan][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About py-shroud[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A powerful utility to obfuscate Python source code, making it difficult to read",
+          "and reverse-engineer. It uses a multi-level approach, from simple bytecode",
+          "conversion to advanced string encryption and name mangling via AST manipulation."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Required Arguments & Options[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [cyan]<INPUT_FILE>[/]            The Python source file to shroud.",
+          "  [green]-o, --output <FILE>[/]    Path for the shrouded output file.",
+          "",
+          "  [green]-l, --level <1|2|3>[/]  Set the obfuscation level (Default: 2).",
+          "  [green]--banner <FILE>[/]      Path to a text file to prepend as a header/comment.",
+          "  [green]-h, --help[/]           Show this detailed help message and exit."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]Obfuscation Levels Explained[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]Level 1: [cyan]Basic[/][/]",
+          "  Converts the source code into marshalled bytecode. Offers minimal protection.",
+          "",
+          "[bold]Level 2: [cyan]Standard (Default)[/][/]",
+          "  Includes Level 1 and adds robust [bold]string encryption[/]. All string literals",
+          "  in your code are hidden and decrypted only at runtime.",
+          "",
+          "[bold]Level 3: [cyan]Maximum[/][/]",
+          "  Includes all previous levels and adds [bold]name mangling[/]. It renames variables,",
+          "  functions, and classes to unreadable, non-descriptive names (e.g., _O, _I)."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Shroud a script with default protection (level 2):",
+          "  [yellow]py-shroud[/] [cyan]my_script.py[/] [green]-o shrouded_script.py[/]",
+          "",
+          "[#] Apply maximum obfuscation (level 3) to protect intellectual property:",
+          "  [yellow]py-shroud[/] [cyan]app.py[/] [green]-o dist/app.py -l 3[/]",
+          "",
+          "[#] Add a copyright banner from a file before obfuscating:",
+          "  [yellow]py-shroud[/] [cyan]api.py[/] [green]-o api_protected.py --banner copyright.txt[/]"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[red]Common Errors & Limitations[/]",
+      "style": "red",
+      "content": [{
+        "component": "Markup",
+        "text": [
+            "  • [bold]\"Invalid Python syntax\":[/] The input file contains a syntax error and cannot be parsed.",
+            "  • [bold]Level 3 can break some code:[/] Name mangling might interfere with code that relies on specific names, such as web frameworks (Flask routes) or reflection.",
+            "  • [bold]F-strings are not fully encrypted:[/] The expressions inside f-strings (e.g., {variable}) are mangled at Level 3, but the literal parts are not encrypted to preserve functionality."
+        ]
+      }]
+    }
+  ]
+}

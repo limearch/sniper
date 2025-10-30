@@ -1,0 +1,318 @@
+#!/usr/bin/env python3
+# File: bin/combined (REFACTORED - Complete Code)
+# Description: An intelligent tool to combine source files for LLM context,
+#              with a professional UI, rich metadata, and flexible file inclusion.
+
+import os
+import sys
+import re
+import argparse
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "combined"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+    from rich.tree import Tree
+    from rich.table import Table
+    from rich.align import Align
+    from tqdm import tqdm
+    import pyperclip
+    import tiktoken
+except ImportError as e:
+    # Use a generic message but log the specific missing library
+    env.log.critical(f"A required library is missing: '{e.name}'. Please run: pip install -r requirements.txt")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
+# Initialize a Rich console for UI elements.
+console = Console()
+
+# --- Configuration & Constants ---
+DEFAULT_EXCLUDED_DIRS = {'.git', '__pycache__', '.vscode', 'node_modules', 'dist', 'build', 'bin', 'obj'}
+DEFAULT_INCLUDED_EXTENSIONS = {
+    '.py', '.js', '.html', '.css', '.json', '.md', '.txt', '.java', '.c',
+    '.cpp', '.h', '.hpp', '.go', '.rs', '.php', '.rb', '.sh', '.toml', '.yaml',
+    '.yml', '.xml', '.ts', '.tsx', '.jsx', '.vue', '.sql', 'dockerfile', '.env'
+}
+LANGUAGE_MAP = {
+    '.py': 'Python', '.js': 'JavaScript', '.ts': 'TypeScript', '.jsx': 'JavaScript (JSX)',
+    '.tsx': 'TypeScript (TSX)', '.html': 'HTML', '.css': 'CSS', '.json': 'JSON', '.md': 'Markdown',
+    '.txt': 'Text', '.java': 'Java', '.c': 'C', '.cpp': 'C++', '.h': 'C/C++ Header',
+    '.hpp': 'C++ Header', '.go': 'Go', '.rs': 'Rust', '.php': 'PHP', '.rb': 'Ruby', '.sh': 'Shell Script',
+    '.toml': 'TOML', '.yaml': 'YAML', '.yml': 'YAML', '.xml': 'XML', '.vue': 'Vue', '.sql': 'SQL',
+    'dockerfile': 'Dockerfile'
+}
+API_COSTS_PER_MILLION_TOKENS = {
+    "OpenAI GPT-4o": 0.13,
+    "Anthropic Claude 3 Sonnet": 0.08,
+    "Google Gemini 1.5 Pro": 0.09,
+}
+
+# --- Core Logic Functions ---
+
+def get_language(path: Path) -> str:
+    """Detects the programming language from a file's extension or name."""
+    if path.name.lower() == 'dockerfile':
+        return 'Dockerfile'
+    return LANGUAGE_MAP.get(path.suffix.lower(), path.suffix[1:].upper() if path.suffix else 'Text')
+
+def parse_gitignore(root_dir: Path) -> set:
+    """Parses a .gitignore file and returns a set of patterns."""
+    gitignore_path = root_dir / '.gitignore'
+    patterns = set()
+    if gitignore_path.is_file():
+        with open(gitignore_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    patterns.add(line.rstrip('/'))
+    return patterns
+
+def is_excluded(path: Path, root_dir: Path, args: argparse.Namespace, gitignore_patterns: set) -> bool:
+    """Checks if a file or directory should be excluded based on various rules."""
+    relative_path = path.relative_to(root_dir)
+    
+    if not args.no_gitignore:
+        for pattern in gitignore_patterns:
+            if relative_path.match(pattern):
+                return True
+
+    path_parts = set(relative_path.parts)
+    if path_parts.intersection(args.exclude_dir):
+        return True
+    if relative_path.name in args.exclude_file:
+        return True
+    if any(part.startswith(p) for p in args.exclude_prefix for part in relative_path.parts):
+        return True
+    return False
+
+def build_file_tree(files_to_process: list, root_dir: Path) -> Tree:
+    """Generates a rich.tree.Tree for the directory structure visualization."""
+    tree = Tree(f"[bold cyan]{root_dir.name}/[/]", guide_style="cyan")
+    paths = [p.relative_to(root_dir) for p in files_to_process]
+    
+    nodes = {}
+    for path in sorted(paths):
+        current_path_str = ""
+        for part in path.parts:
+            parent_path_str = current_path_str
+            current_path_str = os.path.join(current_path_str, part)
+            if current_path_str not in nodes:
+                parent_node = nodes.get(parent_path_str, tree)
+                nodes[current_path_str] = parent_node.add(part)
+    return tree
+ 
+def generate_summary(root_dir: Path, files_to_process: list) -> str:
+    """Generates a rich, detailed project summary in Markdown format."""
+    total_files = len(files_to_process)
+    total_lines = 0
+    total_size = 0
+    lang_count = {}
+
+    for file_path in files_to_process:
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                total_lines += sum(1 for line in f)
+            total_size += file_path.stat().st_size
+            lang = get_language(file_path)
+            lang_count[lang] = lang_count.get(lang, 0) + 1
+        except Exception:
+            continue
+
+    summary_md = ["# Project Summary\n"]
+    stats_table = f"""
+## Project Statistics
+| Metric              | Value         |
+|---------------------|---------------|
+| Total Files         | {total_files}         |
+| Total Lines of Code | {total_lines}       |
+| Total Size          | {total_size/1024:.2f} KB   |
+"""
+    summary_md.append(stats_table)
+
+    summary_md.append("## Language Distribution")
+    lang_table_header = "| Language        | Files |\n|-----------------|-------|\n"
+    lang_table_rows = "".join([f"| {lang:<15} | {count:<5} |\n" for lang, count in sorted(lang_count.items(), key=lambda item: item[1], reverse=True)])
+    summary_md.append(lang_table_header + lang_table_rows)
+
+    summary_md.append("## Directory Structure")
+    file_tree = build_file_tree(files_to_process, root_dir)
+    capture_console = Console(record=True, force_terminal=False)
+    capture_console.print(file_tree)
+    tree_str = capture_console.export_text()
+    summary_md.append(f"```\n{tree_str.strip()}\n```\n---\n")
+    
+    return "\n".join(summary_md)
+
+def remove_comments(content: str, language: str) -> str:
+    """Removes comments from code based on the language."""
+    # This function's logic remains unchanged.
+    lang_simple = language.lower().split(' ')[0]
+    if lang_simple in ['python', 'shell', 'ruby', 'yaml', 'toml']:
+        return re.sub(r'#.*', '', content)
+    if lang_simple in ['javascript', 'typescript', 'java', 'c', 'c++', 'go', 'rust', 'css']:
+        content = re.sub(r'//.*', '', content)
+        content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+        return content
+    if lang_simple == 'html':
+        return re.sub(r'<!--.*?-->', '', content, flags=re.DOTALL)
+    return content
+
+def estimate_cost(num_tokens: int) -> Table:
+    """Estimates API cost and returns a rich.Table object."""
+    # This function's logic remains unchanged.
+    table = Table(title="API Cost Estimation (Input Tokens)", title_style="bold yellow")
+    table.add_column("LLM Provider", style="cyan", justify="left")
+    table.add_column("Estimated Cost", style="green", justify="right")
+    for api, cost_per_million in API_COSTS_PER_MILLION_TOKENS.items():
+        cost = (num_tokens / 1_000_000) * cost_per_million
+        table.add_row(api, f"~${cost:.4f}")
+    return table
+
+def process_directory(args: argparse.Namespace):
+    """Main function to find, process, and combine files."""
+    source_dir = Path(args.source_dir).resolve()
+    if not source_dir.is_dir():
+        env.log.error(f"Directory '{source_dir}' not found.")
+        sys.exit(1)
+
+    console.print(Panel(f"Starting analysis of [cyan]'{source_dir.name}'[/]", title="[bold magenta]SNIPER AI Context Combiner[/]", border_style="magenta"))
+
+    all_files = list(source_dir.rglob('*'))
+    args.exclude_dir = set(args.exclude_dir).union(DEFAULT_EXCLUDED_DIRS)
+    gitignore_patterns = parse_gitignore(source_dir)
+    
+    included_files = set()
+    if args.include:
+        for pattern in args.include:
+            include_path = source_dir / pattern
+            if include_path.is_dir():
+                included_files.update(p for p in include_path.rglob('*') if p.is_file())
+            else:
+                included_files.update(source_dir.glob(pattern))
+    
+    for path in all_files:
+        if path.is_dir(): continue
+        is_default_ext = path.suffix.lower() in args.include_ext or path.name.lower() in args.include_ext
+        if is_default_ext and not is_excluded(path, source_dir, args, gitignore_patterns):
+            included_files.add(path)
+
+    files_to_process = sorted(list(included_files))
+
+    if not files_to_process:
+        env.log.warning("No text files found to process with the given criteria.")
+        return
+
+    all_content = []
+    if args.summary:
+        env.log.info("Generating project summary...")
+        all_content.append(generate_summary(source_dir, files_to_process))
+
+    file_iterator = tqdm(files_to_process, desc="⏳ Processing files", unit="file", bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}")
+
+    for filepath in file_iterator:
+        relative_path = filepath.relative_to(source_dir)
+        language = get_language(filepath)
+        try:
+            with open(filepath, 'r', encoding='utf-8', errors='ignore') as infile:
+                content = infile.read()
+            
+            if args.no_comments: content = remove_comments(content, language)
+            if args.no_empty_lines: content = "\n".join([line for line in content.splitlines() if line.strip()])
+
+            header = f"--- START OF FILE {relative_path} ---\n--- File: {relative_path} | Language: {language} ---\n\n"
+            formatted_content = f"```{language.lower().split(' ')}\n{content}\n```" if args.format == 'markdown' else content
+            all_content.append(header + formatted_content + "\n--- END OF FILE ---\n\n")
+
+        except Exception as e:
+            # Use tqdm's thread-safe write method for logging during iteration.
+            file_iterator.write(f"\033[93m[WARN]\033[0m [combined] Could not read file: {relative_path}. Reason: {e}")
+            
+    final_content = "".join(all_content)
+    
+    try:
+        with open(args.output, 'w', encoding='utf-8') as outfile:
+            outfile.write(final_content)
+    except IOError as e:
+        env.log.error(f"Could not write to output file '{args.output}'. Reason: {e}")
+        return
+
+    try:
+        encoding = tiktoken.get_encoding("cl100k_base")
+        num_tokens = len(encoding.encode(final_content))
+        token_engine = "tiktoken (cl100k_base)"
+    except Exception:
+        num_tokens = len(final_content.split())
+        token_engine = "word count"
+        
+    report_table = Table(box=None, show_header=False)
+    report_table.add_column("Metric", style="bold cyan", justify="right")
+    report_table.add_column("Value", style="white")
+    report_table.add_row("Files Combined:", str(len(files_to_process)))
+    report_table.add_row("Output File:", f"[green]'{args.output}'[/]")
+    report_table.add_row("Token Count:", f"~{num_tokens} ({token_engine})")
+    
+    console.print(Panel(report_table, title="[bold green]✅ Process Completed Successfully[/]", border_style="green", expand=False))
+
+    if args.cost:
+        console.print(Align.center(estimate_cost(num_tokens)))
+
+    if args.copy:
+        try:
+            pyperclip.copy(final_content)
+            console.print("✅ [bold green]Content copied to clipboard![/]")
+        except pyperclip.PyperclipException:
+            env.log.warning("Could not copy to clipboard. 'pyperclip' may not be configured correctly for your system.")
+
+def main():
+    """Main entry point, argument parsing, and dispatching."""
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('-h', '--help', action='store_true')
+    parser.add_argument('source_dir', nargs='?', default='.')
+    parser.add_argument('-o', '--output', default='combined_output.txt')
+    parser.add_argument('--format', choices=['text', 'markdown'], default='text')
+    parser.add_argument('--summary', action='store_true')
+    parser.add_argument('-i', '--include', nargs='+', default=set())
+    parser.add_argument('--include-ext', nargs='+', default=DEFAULT_INCLUDED_EXTENSIONS)
+    parser.add_argument('--exclude-dir', nargs='+', default=set())
+    parser.add_argument('--exclude-prefix', nargs='+', default=set())
+    parser.add_argument('--exclude-file', nargs='+', default=set())
+    parser.add_argument('--no-gitignore', action='store_true')
+    parser.add_argument('--no-comments', action='store_true')
+    parser.add_argument('--no-empty-lines', action='store_true')
+    parser.add_argument('--cost', action='store_true')
+    parser.add_argument('--copy', action='store_true')
+    args = parser.parse_args()
+    
+    if args.help:
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "combined"], capture_output=False)
+        return
+
+    args.exclude_dir = set(args.exclude_dir)
+    args.exclude_file = set(args.exclude_file)
+    args.include_ext = set(args.include_ext)
+    args.exclude_prefix = set(args.exclude_prefix)
+    args.include = set(args.include)
+    
+    process_directory(args)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        env.log.warning("Operation cancelled by user.")
+    

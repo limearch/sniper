@@ -1,0 +1,80 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: lsmap - Advanced Directory Walker & Analyzer", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]lsmap[/] [cyan][DIRECTORY][/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About lsmap[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A powerful and beautiful directory walker that displays the folder structure",
+          "as a tree, similar to the 'tree' command but with advanced filtering and",
+          "reporting features for analysis."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Filtering Options[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-f, --files-only[/]     Display files only (hides directory lines in the tree).",
+          "  [green]-d, --dirs-only[/]      Display directories only.",
+          "  [green]-s, --show-hidden[/]    Show hidden files and directories (names starting with '.').",
+          "  [green]-D, --depth <N>[/]       Limit the tree display to N levels of depth.",
+          "  [green]-m, --min-size <size>[/]   Only show files with a minimum size (e.g., [cyan]10k, 1M, 500b[/])."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]Reporting & Analysis[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-u, --disk-usage[/]     Display total disk usage for the scanned directory.",
+          "  [green]-t, --top-size <N>[/]    Display a table of the top N largest files found.",
+          "  [green]-r, --recent-files[/]   Display a table of the 10 most recently modified files."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[blue]Exporting[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]-e, --export <json>[/]   Export the full list of files and directories to a JSON file."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Display a tree of the current directory, 2 levels deep:",
+          "  [yellow]lsmap[/] [cyan]./[/] [green]-D 2[/]",
+          "",
+          "[#] Show the top 5 largest files in your home directory, including hidden ones:",
+          "  [yellow]lsmap[/] [cyan]~/[/] [green]-s -t 5[/]",
+          "",
+          "[#] Find all files larger than 10MB and export the list to a JSON file:",
+          "  [yellow]lsmap[/] [cyan]/[/] [green]-f -m 10M -e report.json[/]"
+        ]
+      }]
+    }
+  ]
+}

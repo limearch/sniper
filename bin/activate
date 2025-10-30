@@ -1,0 +1,292 @@
+#!/usr/bin/zsh
+# NOTE: This file is intended to be sourced, not executed:
+#   source bin/activate
+#
+# sniper - a robust, feature-rich Zsh activation script.
+# This version combines the stability of the legacy script with the features
+# of the modern one, tailored for a Zsh environment.
+
+# -----------------------------------------------------------------------------
+# Section 0: Ensure we are running in Zsh (sourced)
+# -----------------------------------------------------------------------------
+# This script is designed for being sourced by zsh. If executed directly,
+# many behaviors (like $0) will differ. We still try to be tolerant.
+
+# Determine script path in a way that works when sourced in zsh or bash.
+if [ -n "${ZSH_VERSION:-}" ]; then
+  # In zsh, %x gives the script file when sourced; use :A to absolute
+  script_path="${(%):-%x}"
+  # Make absolute and resolve symlinks if possible
+  script_path="${script_path:A}"
+elif [ -n "${BASH_VERSION:-}" ]; then
+  # For bash (if ever used), use BASH_SOURCE
+  script_path="${BASH_SOURCE[0]:-$0}"
+  script_path="$(realpath "$script_path")"
+else
+  # Fallback — best-effort
+  script_path="$(realpath "$0" 2>/dev/null || printf "%s" "$0")"
+fi
+
+script_dir="$(dirname "$script_path")"
+
+# Define VIRTUAL_ENV early as many other things depend on it
+VIRTUAL_ENV="$(dirname "$script_dir")"
+export VIRTUAL_ENV
+
+CONFIG_PATH="${VIRTUAL_ENV}/config/sniper-config.json"
+
+# -----------------------------------------------------------------------------
+# Section 1: Deactivation Function (clean and comprehensive)
+# -----------------------------------------------------------------------------
+deactivate() {
+    # Restore original PATH
+    if [ -n "${_OLD_VIRTUAL_PATH:-}" ]; then
+        PATH="${_OLD_VIRTUAL_PATH}"; export PATH; unset _OLD_VIRTUAL_PATH
+    fi
+
+    # Restore original PYTHONHOME
+    if [ -n "${_OLD_VIRTUAL_PYTHONHOME:-}" ]; then
+        PYTHONHOME="${_OLD_VIRTUAL_PYTHONHOME}"; export PYTHONHOME; unset _OLD_VIRTUAL_PYTHONHOME
+    fi
+
+    # Restore original PS1
+    if [ -n "${_OLD_VIRTUAL_PS1:-}" ]; then
+        PS1="${_OLD_VIRTUAL_PS1}"; export PS1; unset _OLD_VIRTUAL_PS1
+    fi
+
+    # Reset Zsh completion styles (safe - ignore errors)
+    zstyle -d ':completion:*' list-colors 2>/dev/null || true
+    zstyle -d ':completion:*' matcher-list 2>/dev/null || true
+    zstyle -d ':completion:*' format 2>/dev/null || true
+    zstyle -d ':completion:*' group-name 2>/dev/null || true
+    zstyle -d ':completion:*' verbose 2>/dev/null || true
+    zstyle -d ':completion:*' file-sort 2>/dev/null || true
+
+    unset ZSH_HIGHLIGHT_STYLES 2>/dev/null || true
+    ZSH_AUTOSUGGEST_STRATEGY=()
+
+    # Unset virtual env variables
+  	source "$VIRTUAL_ENV/etc/onexit.sh"
+    unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT PYTHONPATH
+
+    # Unload helper functions
+    unset -f deactivate _enable_powerlevel10k _sniper_zsh_files_by_ext 2>/dev/null || true
+
+    # Refresh command hash table
+    hash -r 2>/dev/null
+	  # unset all alias
+    # If the syntax-highlighting plugin provided cleanup hooks, try to call them:
+    if (( $+functions[zsh_highlight_unload] )); then
+        zsh_highlight_unload 2>/dev/null || true
+    fi
+
+    echo "Sniper virtualenv deactivated."
+}
+
+# -----------------------------------------------------------------------------
+# Section 2: Environment Setup (PATH, PYTHONPATH, save originals)
+# -----------------------------------------------------------------------------
+
+# Save original environment state before modification
+_OLD_VIRTUAL_PATH="${PATH}"
+_OLD_VIRTUAL_PS1="${PS1:-}"
+if [ -n "${PYTHONHOME:-}" ]; then
+    _OLD_VIRTUAL_PYTHONHOME="${PYTHONHOME}"
+    unset PYTHONHOME
+fi
+
+# Add tool bin folders under VIRTUAL_ENV/tools/*/bin to PATH (if present)
+if [ -d "${VIRTUAL_ENV}/tools" ]; then
+  while IFS= read -r bin_folder; do
+    if [ -n "$bin_folder" ] && [ -d "$bin_folder" ]; then
+      PATH="${bin_folder}:${PATH}"
+    fi
+  done < <(find "${VIRTUAL_ENV}/tools" -type d -name bin 2>/dev/null)
+fi
+
+# Prepend virtualenv's main bin directory
+PATH="${VIRTUAL_ENV}/bin:${PATH}"
+export PATH
+
+# Update PYTHONPATH safely
+if [ -n "${PYTHONPATH:-}" ]; then
+  PYTHONPATH="${VIRTUAL_ENV}:${PYTHONPATH}"
+else
+  PYTHONPATH="${VIRTUAL_ENV}"
+fi
+export PYTHONPATH
+
+# -----------------------------------------------------------------------------
+# Section 3: Core Shell Setup (completion, helpers) - compinit once
+# -----------------------------------------------------------------------------
+
+# Load completion system (compinit) once, needed for _files and compdef usage
+if (( $+commands[compinit] )); then
+  # compinit is already available as a builtin/autoloaded command
+  autoload -Uz compinit 2>/dev/null || true
+  # Use -u to skip insecure directories warnings in environments like Termux
+  compinit -u 2>/dev/null || true
+else
+  autoload -Uz compinit 2>/dev/null || true
+  compinit -u 2>/dev/null || true
+fi
+
+# --- Helper function for file completion by extension ---
+_sniper_zsh_files_by_ext() {
+    local ext="$1"
+    # Use zsh's _files completion function; pattern with (#i) for case-insensitive
+    _files -g "*.(#i)${ext}"
+}
+
+# Completion for 'cd' -> directories only
+compdef _directories cd
+
+# Apply completion helpers to common commands
+compdef '_sniper_zsh_files_by_ext py' python python3
+compdef '_sniper_zsh_files_by_ext sh' sh bash
+compdef '_sniper_zsh_files_by_ext js' node nodejs
+compdef '_sniper_zsh_files_by_ext (pl|pm)' perl
+compdef '_sniper_zsh_files_by_ext php' php
+compdef '_sniper_zsh_files_by_ext rb' ruby
+# new
+ZSH_PLUGIN_DIR="${VIRTUAL_ENV}/share/zsh-plugins"
+FZF_PLUGIN_DIR="${ZSH_PLUGIN_DIR}/fzf"
+if [ -d "$FZF_PLUGIN_DIR" ]; then
+  # Source the two essential files for fzf integration
+  [ -f "${FZF_PLUGIN_DIR}/shell/completion.zsh" ] && source "${FZF_PLUGIN_DIR}/shell/completion.zsh"
+  [ -f "${FZF_PLUGIN_DIR}/shell/key-bindings.zsh" ] && source "${FZF_PLUGIN_DIR}/shell/key-bindings.zsh"
+fi
+
+# -- Initialize zoxide (smart cd) --
+# Checks if the 'zoxide' command is available in the PATH.
+if command -v zoxide >/dev/null; then
+  # zoxide initialization is dynamic; it runs the binary which outputs the
+  # zsh script to be evaluated.
+  eval "$(zoxide init zsh)"
+fi
+# --- Initialize Zsh's completion system ---
+# autoload -Uz compinit && compinit -u
+
+# --- 1. Matching Behavior (Fuzzy + Case-Insensitive) ---
+# Try to correct typos first, then match case-insensitively.
+zstyle ':completion:*' matcher-list 'e:{a-z}={A-Z}' 'm:{a-z}={A-Z}' 'r:|[._-]=* r:|=*'
+
+# --- 2. Visuals and Formatting ---
+# Show descriptions for completions.
+zstyle ':completion:*' verbose yes
+
+# Group completions by their type.
+zstyle ':completion:*' group-name ''
+
+# Style the group titles to be bold, underlined, and yellow.
+zstyle ':completion:*:*:*:*:groups' format '%B%F{yellow}%U%d%u%f%b'
+
+# Use a character to separate different groups of completions.
+zstyle ':completion:*' 'multicomp-separator' '—'
+
+# --- 3. Coloring ---
+# Enable coloring, and use the richer LS_COLORS for file types.
+autoload -U colors && colors
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+
+# --- 4. Usability and Interaction ---
+# Enable menu completion to cycle through options with Tab.
+zstyle ':completion:*' menu select
+zstyle ':completion:*' file-sort directories-first
+
+# If there are many options, show an interactive scrolling prompt.
+zstyle ':completion:*' select-prompt '%SScrolling active: %p%s'
+
+# Use a cache to speed up slow completion commands.
+# Ensure the cache directory exists.
+if [ ! -d "$HOME/.zsh/cache" ]; then
+  mkdir -p "$HOME/.zsh/cache"
+fi
+zstyle ':completion:*' use-cache yes
+zstyle ':completion:*' cache-path "$HOME/.zsh/cache"
+autoload -Uz compinit && compinit
+# -----------------------------------------------------------------------------
+# Section 4: Load plugins (order matters) - set plugin configs BEFORE sourcing
+# -----------------------------------------------------------------------------
+
+
+# --- zsh-autosuggestions configuration (set before sourcing) ---
+# Ensure strategies and style are defined before plugin loads so plugin reads them.
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=240'  # dim grey
+ZSH_AUTOSUGGEST_USE_WIDGETS=1
+
+if [ -f "${ZSH_PLUGIN_DIR}/zsh-autosuggestions/zsh-autosuggestions.zsh" ]; then
+  source "${ZSH_PLUGIN_DIR}/zsh-autosuggestions/zsh-autosuggestions.zsh"
+fi
+
+# --- zsh-syntax-highlighting: define styles BEFORE sourcing ---
+# Declare associative array for styles globally so plugin picks them up
+typeset -gA ZSH_HIGHLIGHT_STYLES
+ZSH_HIGHLIGHT_STYLES[command]='fg=81,bold'
+ZSH_HIGHLIGHT_STYLES[path]='fg=220,underline'
+ZSH_HIGHLIGHT_STYLES[path_prefix]='fg=214'
+ZSH_HIGHLIGHT_STYLES[globbing]='fg=129,bold'
+ZSH_HIGHLIGHT_STYLES[builtin]='fg=202,bold'
+ZSH_HIGHLIGHT_STYLES[alias]='fg=113,underline'
+ZSH_HIGHLIGHT_STYLES[function]='fg=48,bold'
+ZSH_HIGHLIGHT_STYLES[commandseparator]='fg=245'
+ZSH_HIGHLIGHT_STYLES[arg:command]='fg=white'
+ZSH_HIGHLIGHT_STYLES[arg:string]='fg=150'
+ZSH_HIGHLIGHT_STYLES[redirection]='fg=208'
+ZSH_HIGHLIGHT_STYLES[unknown-token]='fg=196,bold,underline'
+ZSH_HIGHLIGHT_STYLES[precommand]='fg=10'
+ZSH_HIGHLIGHT_STYLES[comment]='fg=242,italic'
+
+# Highlighter behavior
+ZSH_HIGHLIGHT_MAXLENGTH=512
+ZSH_HIGHLIGHT_PRECOMMANDS=('sudo' 'doas' 'time' 'strace' 'man')
+# Ensure the 'main' highlighter is available; prefer 'main' last loaded by plugin
+ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets)
+
+# Load zsh-syntax-highlighting LAST (must be after style definitions and other plugins)
+if [ -f "${ZSH_PLUGIN_DIR}/zsh-completions/zsh-completions.zsh" ]; then
+  source "${ZSH_PLUGIN_DIR}/zsh-completions/zsh-completions.zsh"
+fi
+
+if [ -f "${ZSH_PLUGIN_DIR}/zsh-git-prompt/zshrc.sh" ]; then
+  source "${ZSH_PLUGIN_DIR}/zsh-git-prompt/zshrc.sh"
+fi
+if [ -f "${ZSH_PLUGIN_DIR}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]; then
+  source "${ZSH_PLUGIN_DIR}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+fi
+
+# -----------------------------------------------------------------------------
+# Section 5: Prompt and other optional components
+# -----------------------------------------------------------------------------
+
+# Source the custom prompt and aliases from etc/bashrc if present
+# This sets PS1 and other user prompt settings; keep it after plugin setup if the file
+# depends on plugins — but style variables must be set before syntax-highlighting load.
+if [ -f "${VIRTUAL_ENV}/etc/bashrc" ]; then
+  source "${VIRTUAL_ENV}/etc/bashrc"
+fi
+
+# Helper function to enable Powerlevel10k (user can call from .zshrc)
+_enable_powerlevel10k() {
+    local p10k_dir="${VIRTUAL_ENV}/share/zsh-plugins/powerlevel10k"
+    if [ -f "${p10k_dir}/p10k.zsh" ]; then
+      source "${p10k_dir}/p10k.zsh"
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# Section 6: Finalization
+# -----------------------------------------------------------------------------
+
+# Refresh command lookup cache
+hash -r 2>/dev/null
+# Run intro animation script only once
+local INTRO_LOCK_FILE="$VIRTUAL_ENV/config/.intro_has_run"
+if [ ! -f "$INTRO_LOCK_FILE" ]; then
+    if [ -f "$VIRTUAL_ENV/etc/intro.py" ]; then
+        python3 "$VIRTUAL_ENV/etc/intro.py" && touch "$INTRO_LOCK_FILE"
+    fi
+fi
+# Provide a single activation message at the end (after plugins loaded)
+# End of file

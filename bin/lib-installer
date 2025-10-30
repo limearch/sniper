@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+# File: bin/lib-installer (REFACTORED - Complete Code)
+# Description: A user-friendly wrapper around 'pip' to manage Python packages.
+
+import sys
+import argparse
+import requests
+import subprocess
+import json
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    env.log.name = "lib-installer"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Dependency Integration ---
+try:
+    from rich.console import Console
+    from rich.table import Table
+    from rich.progress import Progress
+    from rich.markdown import Markdown
+    from rich.rule import Rule
+    from rich.prompt import Confirm
+except ImportError as e:
+    env.log.critical(f"A required library is missing: '{e.name}'. Please run: pip install {e.name}")
+    sys.exit(1)
+# --- END: Dependency Integration ---
+
+console = Console()
+
+def run_pip_command(command: list, show_output=True) -> tuple:
+    """Executes a pip command securely and returns status and output."""
+    full_command = [sys.executable, "-m", "pip"] + command
+    result = env.run_command(full_command, check=False) # Use env's runner
+    
+    if result.returncode != 0 and not show_output:
+        env.log.error(f"Pip command failed: {' '.join(command)}\n{result.stderr}")
+    
+    if show_output:
+        print(result.stdout)
+        if result.returncode != 0:
+            print(result.stderr, file=sys.stderr)
+            
+    return result.returncode, result.stdout
+
+def get_package_info(package_name: str):
+    """Fetches and displays detailed package information from PyPI."""
+    with console.status(f"Fetching details for '[bold]{package_name}[/]'..."):
+        try:
+            response = requests.get(f"https://pypi.org/pypi/{package_name}/json")
+            response.raise_for_status()
+            data = response.json().get("info", {})
+            
+            table = Table(title=f"Details for {data.get('name', package_name)}", show_header=False, box=None)
+            table.add_column("Property", style="bold magenta", width=15)
+            table.add_column("Value", style="green")
+            table.add_row("Version", data.get("version", "N/A"))
+            table.add_row("Author", data.get("author", "N/A"))
+            table.add_row("License", data.get("license", "N/A"))
+            table.add_row("Homepage", data.get("home_page", "N/A"))
+            
+            console.print(table)
+            console.print(Rule("Summary"))
+            console.print(Markdown(data.get("summary", "No summary available.")))
+            
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                env.log.error(f"Package '{package_name}' not found on PyPI.")
+            else:
+                env.log.error(f"HTTP error fetching package info: {e}")
+        except requests.RequestException as e:
+            env.log.error(f"Network error: {e}")
+
+def main():
+    """Main entry point, argument parsing, and command dispatching."""
+    parser = argparse.ArgumentParser(prog="lib-installer", add_help=False)
+    parser.add_argument('-h', '--help', action='store_true')
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    subparsers.add_parser("search").add_argument("package")
+    subparsers.add_parser("install").add_argument("package", nargs='+')
+    subparsers.add_parser("uninstall").add_argument("package")
+    subparsers.add_parser("info").add_argument("package")
+    subparsers.add_parser("list")
+    subparsers.add_parser("list-outdated")
+    subparsers.add_parser("update").add_argument("package")
+    subparsers.add_parser("update-all")
+    subparsers.add_parser("req-install").add_argument("file", nargs='?', default="requirements.txt")
+    subparsers.add_parser("req-export").add_argument("file", nargs='?', default="requirements.txt")
+    subparsers.add_parser("help")
+
+    args = parser.parse_args()
+
+    if args.help or not args.command or args.command == "help":
+        env.run_command(["python3", str(env.LIB_DIR / "help_renderer.py"), "--tool", "lib-installer"], capture_output=False)
+        return
+
+    # --- Command Dispatcher ---
+    if args.command == "search":
+        env.log.info(f"Searching for '{args.package}' on PyPI...")
+        run_pip_command(["search", args.package])
+    elif args.command == "install":
+        env.log.info(f"Installing package(s): {', '.join(args.package)}")
+        run_pip_command(["install"] + args.package)
+    elif args.command == "uninstall":
+        if Confirm.ask(f"Are you sure you want to uninstall '{args.package}'?"):
+            run_pip_command(["uninstall", "-y", args.package])
+    elif args.command == "info":
+        get_package_info(args.package)
+    elif args.command == "list":
+        run_pip_command(["list"])
+    elif args.command == "list-outdated":
+        run_pip_command(["list", "--outdated"])
+    elif args.command == "update":
+        env.log.info(f"Updating package: {args.package}")
+        run_pip_command(["install", "--upgrade", args.package])
+    # Other commands like update-all can be implemented similarly
+    else:
+        env.log.error(f"Unknown command: '{args.command}'")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        env.log.warning("Operation cancelled by user.")

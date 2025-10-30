@@ -1,0 +1,84 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: Project Initializer", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]sniper-init[/] [cyan][PROJECT_NAME][/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About sniper-init[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "An intelligent and interactive tool to bootstrap new software projects from",
+          "dynamic, professional templates. It automates setup, letting you go from",
+          "idea to coding in seconds."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Execution Modes[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]Interactive Mode (Recommended):[/]",
+          "  Run without a project name to launch a step-by-step wizard.",
+          "  [yellow]sniper-init[/]",
+          "",
+          "[bold]Direct Mode (for automation):[/]",
+          "  Provide all options on the command line for scripting.",
+          "  [yellow]sniper-init[/] [cyan]my-react-app[/] [green]-t react-ts-vite --no-git[/]"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]Options[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [cyan]<PROJECT_NAME>[/]        The name for the new project directory (triggers Direct Mode).",
+          "  [green]-t, --template <T>[/]    Specify the project template to use. [dim](Required in Direct Mode)[/]",
+          "                         [dim]Available: c-project, cpp-project, django-project, express-api, flask-api, go-cli, nextjs-app-router, react-ts-vite, web-static[/]",
+          "",
+          "  [green]--git[/] / [green]--no-git[/]          Initialize a Git repository (default: yes).",
+          "  [green]--docker[/] / [green]--no-docker[/]     Include Docker files if available (default: yes).",
+          "  [green]-h, --help[/]             Show this help message and exit."
+        ]
+      }]
+    },
+    {
+        "component": "Panel",
+        "title": "[magenta]Template System[/]",
+        "style": "magenta",
+        "content": [{
+            "component": "Markup",
+            "text": "Each template is a directory containing a `sniper.json` manifest. This file defines dynamic questions, post-initialization commands, and next steps, making the tool incredibly extensible. You can even add your own custom templates directory in the main sniper config."
+        }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]💡 Examples[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Launch the interactive setup wizard (recommended):",
+          "  [yellow]sniper-init[/]",
+          "",
+          "[#] Create a new Flask API project directly named 'my-api':",
+          "  [yellow]sniper-init[/] [cyan]my-api[/] [green]-t flask-api[/]",
+          "",
+          "[#] Create a static web page project and skip Git initialization:",
+          "  [yellow]sniper-init[/] [cyan]portfolio[/] [green]-t web-static --no-git[/]"
+        ]
+      }]
+    }
+  ]
+}

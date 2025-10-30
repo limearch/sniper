@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+# File: bin/sniper-crypt (CORRECTED AGAIN - Complete Code)
+# Description: Entrypoint for the sniper-crypt encryption utility.
+
+import os
+import sys
+import getpass
+import argparse
+import secrets
+import string
+import json
+from queue import Queue
+import threading
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration (Corrected Path Setup) ---
+try:
+    # 1. Add the project's root directory ('sniper/') to the Python path.
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    
+    # 2. Add the specific tool's root directory ('tools/sniper-crypt/') to the path.
+    _TOOL_ROOT = Path(__file__).resolve().parent.parent / "tools" / "sniper-crypt"
+    sys.path.insert(0, str(_TOOL_ROOT))
+    
+    # 3. Now, import the centralized environment and the help renderer.
+    from lib.sniper_env import env
+    from lib.help_renderer import render_help
+    
+    # 4. Set the logger name for this specific tool.
+    env.log.name = "sniper-crypt"
+except (ImportError, IndexError):
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize SNIPER environment.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+# --- START: Rich & Core Logic Integration ---
+try:
+    from rich.console import Console
+    from tqdm import tqdm
+except ImportError as e:
+    env.log.critical(f"A required library is missing: '{e.name}'. Please run: pip install {e.name}")
+    sys.exit(1)
+
+# --- START: CORE FIX ---
+# The comment is now on its own line, and the import is correctly indented.
+# Now that the tool's path is in sys.path, we can import from its package directly.
+from crypt_utils.core import (
+    find_files_in_dir, encrypt_single_file, decrypt_single_file, secure_delete
+)
+# --- END: CORE FIX ---
+# --- END: Rich & Core Logic Integration ---
+
+
+# --- Global State for Reporting ---
+successful_files = []
+failed_files = []
+thread_lock = threading.Lock()
+
+
+def show_rich_help():
+    """Displays the help screen using the centralized JSON-driven renderer."""
+    help_file_path = env.ROOT_DIR / "share" / "readme" / "sniper-crypt.json"
+    if not help_file_path.is_file():
+        env.log.error(f"Help file not found at: {help_file_path}")
+        sys.exit(1)
+    try:
+        with open(help_file_path, 'r', encoding='utf-8') as f:
+            help_data = json.load(f)
+        render_help(help_data)
+    except (json.JSONDecodeError, IOError) as e:
+        env.log.error(f"Failed to load or parse help file '{help_file_path}': {e}")
+        sys.exit(1)
+    sys.exit(0)
+
+
+def worker_thread(queue, action_func, password, remove, pbar):
+    """The function executed by each worker thread to process a file from the queue."""
+    while not queue.empty():
+        try:
+            file_path = queue.get_nowait()
+        except Queue.Empty:
+            continue
+
+        original_path, success, error_msg = action_func(file_path, password)
+
+        with thread_lock:
+            if success:
+                successful_files.append(original_path)
+                if remove and action_func.__name__ == 'encrypt_single_file':
+                    secure_delete(original_path, pbar)
+            else:
+                failed_files.append((original_path, error_msg))
+                with pbar.get_lock():
+                     pbar.write(f"\033[91m[ERROR]\033[0m Failed '{os.path.basename(original_path)}': {error_msg}")
+
+        pbar.update(1)
+        queue.task_done()
+
+
+def process_files_concurrently(files: list, action_func, password: str, remove: bool):
+    """Manages a thread pool to process a list of files concurrently."""
+    q = Queue()
+    for f in files:
+        q.put(f)
+
+    with tqdm(total=len(files), desc=f"{action_func.__name__.split('_')[0].capitalize()}ing", unit="file", ncols=80, leave=False) as pbar:
+        threads = []
+        num_workers = min(10, (os.cpu_count() or 1) + 4, len(files))
+        for _ in range(num_workers):
+            thread = threading.Thread(target=worker_thread, args=(q, action_func, password, remove, pbar), daemon=True)
+            threads.append(thread)
+            thread.start()
+        
+        q.join()
+
+
+def generate_password(length=24):
+    """Generates a cryptographically strong, random password."""
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*()_+-=[]{}|;:,.<>?"
+    password = ''.join(secrets.choice(alphabet) for _ in range(length))
+    return password
+
+
+def handle_encrypt(args):
+    """Handler function for the 'encrypt' subcommand."""
+    path = args.path
+    if not os.path.exists(path):
+        env.log.error(f"Path not found: '{path}'"); sys.exit(1)
+        
+    try:
+        password = getpass.getpass("Enter encryption password: ")
+        if not password:
+            env.log.error("Password cannot be empty."); sys.exit(1)
+        if getpass.getpass("Confirm password: ") != password:
+            env.log.error("Passwords do not match."); sys.exit(1)
+    except KeyboardInterrupt:
+        print("\nOperation cancelled."); sys.exit(0)
+
+    if os.path.isdir(path):
+        env.log.info(f"Scanning directory '{path}' for files to encrypt...")
+        files = find_files_in_dir(path, is_decrypt=False)
+        if not files:
+            env.log.info("No non-encrypted files found to process."); return
+        process_files_concurrently(files, encrypt_single_file, password, args.remove)
+    else:
+        original_path, success, error_msg = encrypt_single_file(path, password)
+        if success:
+            successful_files.append(original_path)
+            if args.remove:
+                secure_delete(original_path, None)
+        else:
+            failed_files.append((original_path, error_msg))
+
+
+def handle_decrypt(args):
+    """Handler function for the 'decrypt' subcommand."""
+    path = args.path
+    if not os.path.exists(path):
+        env.log.error(f"Path not found: '{path}'"); sys.exit(1)
+        
+    try:
+        password = getpass.getpass("Enter decryption password: ")
+        if not password:
+            env.log.error("Password cannot be empty."); sys.exit(1)
+    except KeyboardInterrupt:
+        print("\nOperation cancelled."); sys.exit(0)
+
+    if os.path.isdir(path):
+        env.log.info(f"Scanning directory '{path}' for .enc files to decrypt...")
+        files = find_files_in_dir(path, is_decrypt=True)
+        if not files:
+            env.log.info("No encrypted (.enc) files found to process."); return
+        process_files_concurrently(files, decrypt_single_file, password, False)
+    else:
+        original_path, success, error_msg = decrypt_single_file(path, password)
+        if success: successful_files.append(original_path)
+        else: failed_files.append((original_path, error_msg))
+
+
+def handle_genpass(args):
+    """Handler function for the 'genpass' subcommand."""
+    password = generate_password(args.length)
+    console = Console()
+    console.print(f"[bold green]Generated Password:[/] [bold cyan]{password}[/]")
+
+
+def main():
+    """Main entry point, argument parsing and command dispatching."""
+    parser = argparse.ArgumentParser(prog="sniper-crypt", add_help=False)
+    parser.add_argument('-h', '--help', action='store_true', help="Show this help message.")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    parser_encrypt = subparsers.add_parser("encrypt", help="Encrypt a file or folder.", add_help=False)
+    parser_encrypt.add_argument("path", help="The file or folder to encrypt.")
+    parser_encrypt.add_argument("-r", "--remove", action="store_true", help="Securely remove original files after encryption.")
+    parser_encrypt.set_defaults(func=handle_encrypt)
+
+    parser_decrypt = subparsers.add_parser("decrypt", help="Decrypt a file or folder.", add_help=False)
+    parser_decrypt.add_argument("path", help="The .enc file or folder to decrypt.")
+    parser_decrypt.set_defaults(func=handle_decrypt)
+
+    parser_genpass = subparsers.add_parser("genpass", help="Generate a strong, random password.", add_help=False)
+    parser_genpass.add_argument("-l", "--length", type=int, default=24, help="Length of the password (default: 24).")
+    parser_genpass.set_defaults(func=handle_genpass)
+
+    subparsers.add_parser("help", add_help=False)
+    
+    args = parser.parse_args()
+
+    if args.help or not hasattr(args, 'func'):
+        show_rich_help()
+
+    args.func(args)
+
+    if successful_files or failed_files:
+        print("\n" + "-"*40)
+        print(f"\033[1mOperation Summary\033[0m")
+        if successful_files:
+            print(f"\033[92mSuccessfully processed:\033[0m {len(successful_files)} file(s)")
+        if failed_files:
+            print(f"\033[91mFailed to process:\033[0m {len(failed_files)} file(s)")
+            for f, err in failed_files:
+                print(f"  - {os.path.basename(f)}: {err}")
+        print("-" * 40)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        env.log.warning("Operation cancelled by user.")
+        sys.exit(130)

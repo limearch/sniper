@@ -1,0 +1,3 @@
+unalias m n del mk c gc p2i p3i pi cddo cdsd la l ls vs 
+# unset varibals and functions
+# unset deactivate _sniper_zsh_files_by_ext _enable_powerlevel10k script_path script_dir VIRTUAL_ENV CONFIG_PATH  PATH PYTHONHOME PYTHONPATH PS1 bin_folder ext p10k_dir ZSH_PLUGIN_DIR FZF_PLUGIN_DIR ZSH_AUTOSUGGEST_STRATEGY ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE ZSH_AUTOSUGGEST_USE_WIDGETS ZSH_HIGHLIGHT_STYLES ZSH_HIGHLIGHT_MAXLENGTH ZSH_HIGHLIGHT_PRECOMMANDS ZSH_HIGHLIGHT_HIGHLIGHTERS HOME LS_COLORS ZSH_VERSION BASH_VERSION zsh_highlight_unload compinit _files

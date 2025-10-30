@@ -1,0 +1,79 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [
+        {
+          "component": "Text",
+          "text": "SNIPER: Help Renderer Test",
+          "style": "bold magenta",
+          "justify": "center"
+        }
+      ]
+    },
+    {
+      "component": "Text",
+      "text": "[bold]Usage:[/] [yellow]This is a demonstration of the JSON-driven help system.[/]",
+      "justify": "center"
+    },
+    {
+      "component": "Panel",
+      "title": "[blue]Panel with Markup[/]",
+      "style": "blue",
+      "content": [
+        {
+          "component": "Markup",
+          "text": [
+            "This panel demonstrates simple text with [bold]Rich markup[/].",
+            "  - [green]Lists[/] are easy to create.",
+            "  - Just add strings to the 'content' array."
+          ]
+        }
+      ]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Panel with Columns[/]",
+      "style": "cyan",
+      "subtitle": "Useful for options",
+      "content": [
+        {
+          "component": "Columns",
+          "items": [
+            "[green]--option1 <val>[/]   Description for option one.",
+            "[green]--another-opt[/]    Description for another option.",
+            "[green]--verbose[/]         Enable verbose mode."
+          ],
+          "options": {
+            "equal": true,
+            "expand": true
+          }
+        }
+      ]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]Panel with Rules and Nested Components[/]",
+      "style": "green",
+      "content": [
+        {
+          "component": "Rule",
+          "text": "Section A"
+        },
+        {
+          "component": "Markup",
+          "text": "Content for section A goes here."
+        },
+        {
+          "component": "Rule",
+          "text": "Section B"
+        },
+        {
+          "component": "Markdown",
+          "text": "You can even include **Markdown** formatted text:\n\n* Item 1\n* Item 2"
+        }
+      ]
+    }
+  ]
+}

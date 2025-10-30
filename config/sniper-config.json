@@ -1,0 +1,23 @@
+{
+    "user": {
+        "name": "SNIPER\ud83d\udc80CODER",
+        "permissions": "root",
+        "shell": "zsh",
+        "aliases": {
+            "ll": "ls -la",
+            "gs": "git status"
+        }
+    },
+    "appearance":{
+    	"theme_prompt": "user",
+        "theme": "dark"
+    },
+    "environment": {
+        "python_version": "3.11",
+        "virtual_env_name": "sniper-env",
+        "tools_enabled": true
+    },
+    "view-source": {
+        "default_theme": "material"
+    }
+}

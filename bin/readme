@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+# File: readme.py (REWRITTEN)
+# Description: The central help dispatcher for the SNIPER toolkit.
+# It uses the centralized rendering engine to display help for the main tool or any sub-tool.
+
+import sys
+from pathlib import Path
+
+# --- START: Core SNIPER Environment Integration ---
+# This block is crucial for finding and importing the project's shared libraries.
+try:
+    # Determine the project's root directory by traversing up from this file's location.
+    # Assumes this script is in a 'bin' or similar top-level directory.
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    if "tools" in str(_PROJECT_ROOT): # Adjust if script is deeper, like in tools/x/bin
+        _PROJECT_ROOT = _PROJECT_ROOT.parents[2]
+    
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    
+    # Import the centralized environment and the help rendering function.
+    from lib.sniper_env import env
+    from lib.help_renderer import load_and_render
+
+    # Set the logger name for this specific tool for contextual logging.
+    env.log.name = "readme"
+except (ImportError, IndexError):
+    # This is a critical failure. If the environment can't be loaded, the tool cannot run.
+    print("\033[91m[CRITICAL ERROR]\033[0m Could not initialize the SNIPER environment.", file=sys.stderr)
+    print("  ↳ Please ensure this tool is run from within the complete SNIPER project structure.", file=sys.stderr)
+    sys.exit(1)
+# --- END: Core SNIPER Environment Integration ---
+
+def main():
+    """
+    Parses command-line arguments and calls the appropriate help renderer.
+    """
+    num_args = len(sys.argv)
+
+    if num_args == 1:
+        # Behavior 1: No arguments provided.
+        # The user ran `readme`. Display the main help screen.
+        # The main help file is named after the project itself, 'sniper.json'.
+        load_and_render("sniper")
+
+    elif num_args == 2:
+        # Behavior 2: One argument provided.
+        # The user ran `readme <tool_name>`.
+        tool_name = sys.argv[1].lower()
+
+        # Check if a help file exists for the requested tool.
+        help_file_path = env.ROOT_DIR / "share" / "readme" / f"{tool_name}.json"
+
+        if help_file_path.is_file():
+            # The tool is valid, render its specific help file.
+            load_and_render(tool_name)
+        else:
+            # Behavior 3: Invalid tool name.
+            # Print a warning and list available help topics.
+            env.log.error(f"Tool '{tool_name}' not found.")
+            
+            # Scan the readme directory to find all available help files.
+            readme_dir = env.ROOT_DIR / "share" / "readme"
+            available_tools = sorted([
+                f.stem for f in readme_dir.glob("*.json") if f.stem != "sniper" and f.stem != "test_help"
+            ])
+            
+            env.log.info("Available tools: " + ", ".join(available_tools))
+            return 1 # Return an error code
+
+    else:
+        # More than one argument was provided, which is incorrect usage.
+        env.log.error("Too many arguments provided.")
+        env.log.info("Usage: readme [<tool_name>]")
+        return 1
+    
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        # Handle Ctrl+C gracefully.
+        print("\nOperation cancelled.")
+        sys.exit(130)
