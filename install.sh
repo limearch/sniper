@@ -67,20 +67,20 @@ run_setup() {
         print_error "setup/setup.py not found. Please run from the project root."
         exit 1
     fi
-    
+
     local cmd="python3 setup/setup.py"
     print_info "Running dependency installer..."
     log_msg "CMD" "$cmd"
-    
+
     echo -e "${C_GREY}▼▼▼ Running setup.py (output also in log file) ▼▼▼${C_RESET}"
-    
+
     # Execute and redirect both stdout and stderr to the log file, and also show on screen
     if ! ($cmd 2>&1 | tee -a "$LOG_FILE"); then
         echo -e "${C_GREY}▲▲▲ End of setup.py output ▲▲▲${C_RESET}"
         print_error "Dependency installation failed. Please check the log file for details: $LOG_FILE"
         exit 1
     fi
-    
+
     echo -e "${C_GREY}▲▲▲ End of setup.py output ▲▲▲${C_RESET}"
     print_success "All dependencies are installed."
 }
@@ -92,20 +92,20 @@ run_build() {
         print_error "$build_script not found. Cannot compile tools."
         exit 1
     fi
-    
+
     # Build central C utility library first
-	local c_utils_dir="lib/c_utils"
-	if [ -d "$c_utils_dir" ]; then
-	    print_info "Building central C utility library (libsniper_c_utils.a)..."
+        local c_utils_dir="lib/c_utils"
+        if [ -d "$c_utils_dir" ]; then
+            print_info "Building central C utility library (libsniper_c_utils.a)..."
         local make_cmd="(cd \"$c_utils_dir\" && make clean && make)"
         log_msg "CMD" "$make_cmd"
-        
+
         if ! (eval "$make_cmd" >> "$LOG_FILE" 2>&1); then
             print_error "Failed to build the central C utility library. Check log for details."
             exit 1
         fi
-	    print_success "Central C library built successfully."
-	fi
+            print_success "Central C library built successfully."
+        fi
 
     print_info "Ensuring output 'bin/' directories exist for all tools..."
     # This part doesn't produce much output, so we just log it.
@@ -115,9 +115,9 @@ run_build() {
     chmod +x "$build_script"
     print_info "Compiling all C/C++ tools..."
     log_msg "CMD" "./$build_script"
-    
+
     echo -e "${C_GREY}▼▼▼ Running build script (output also in log file) ▼▼▼${C_RESET}"
-    
+
     if ! (./"$build_script" 2>&1 | tee -a "$LOG_FILE"); then
         echo -e "${C_GREY}▲▲▲ End of build output ▲▲▲${C_RESET}"
         print_error "Build process failed. Please check the log file for details: $LOG_FILE"
@@ -140,7 +140,7 @@ run_build() {
 # ==============================================================================
 install_zsh_plugins() {
     print_stage "Installing Zsh Plugins & Power Tools"
-    
+
     # Define the target directory for plugins relative to the project root
     local plugins_dir="share/zsh-plugins"
     mkdir -p "$plugins_dir"
@@ -179,7 +179,7 @@ install_zsh_plugins() {
     clone_plugin "zsh-syntax-highlighting" "https://github.com/zsh-users/zsh-syntax-highlighting.git"
     clone_plugin "zsh-completions" "https://github.com/zsh-users/zsh-completions.git"
     clone_plugin "Powerlevel10k" "https://github.com/romkatv/powerlevel10k.git"
-    
+
     # fzf is treated as a plugin here because we only need its zsh integration scripts.
     # The fzf binary itself will be installed as a separate tool.
     clone_plugin "fzf-zsh-scripts" "https://github.com/junegunn/fzf.git" "fzf"
@@ -188,23 +188,25 @@ install_zsh_plugins() {
     # --- 2. Install Companion Tool Binaries (fzf & zoxide) ---
     # These are standalone programs that our zsh scripts will use.
     # We use the system's package manager for them as it's the most reliable way.
-    
+
     # Helper function to install a package if it's not already present
     install_package() {
         local pkg_name="$1"
         if command -v "$pkg_name" &> /dev/null; then
             print_info "Tool '$pkg_name' is already installed. Skipping."
         else
-            print_info "Installing tool '$pkg_name' using pkg..."
-            log_msg "CMD" "pkg install -y $pkg_name"
-            if pkg install -y "$pkg_name" >> "$LOG_FILE" 2>&1; then
-                print_success "'$pkg_name' installed successfully via pkg."
-            else
-                print_error "Failed to install '$pkg_name' via pkg. Check log."
+            print_info "Installing tool '$pkg_name'..."
+            # Check package manager (apt for Debian/Ubuntu, pkg for Termux)
+            if command -v apt &> /dev/null; then
+                log_msg "CMD" "apt install -y $pkg_name"
+                apt update && apt install -y "$pkg_name" >> "$LOG_FILE" 2>&1
+            elif command -v pkg &> /dev/null; then
+                log_msg "CMD" "pkg install -y $pkg_name"
+                pkg install -y "$pkg_name" >> "$LOG_FILE" 2>&1
             fi
         fi
     }
-    
+
     # We are assuming a Termux/Debian-like environment that uses 'pkg' or 'apt'
     # The logic can be expanded for other package managers if needed.
     install_package "fzf"
@@ -215,9 +217,8 @@ install_zsh_plugins() {
 change_shell_to_zsh() {
     print_stage "Configuring Shell Environment"
     if ! command -v zsh &> /dev/null; then
-        print_error "Zsh is not installed. The setup script should have installed it."
-        print_info "Please install it manually and re-run."
-        exit 1
+        print_info "Zsh is not installed. Installing it via apt..."
+        apt update && apt install -y zsh
     fi
 
     local zsh_path
@@ -226,18 +227,17 @@ change_shell_to_zsh() {
     if [[ "$SHELL" == *"/zsh"* ]]; then
         print_info "Default shell is already Zsh. Skipping change."
     else
-        print_info "Changing default shell to Zsh..."
-        local chsh_cmd="chsh -s zsh"
+        print_info "Changing default shell to Zsh ($zsh_path)..."
+        # Use full path to avoid corrupting /etc/passwd in proot containers
+        local chsh_cmd="chsh -s $zsh_path"
         log_msg "CMD" "$chsh_cmd"
-        
-        # Capture output for logging
-        chsh_output=$(chsh -s zsh 2>&1)
+
+        chsh_output=$(chsh -s "$zsh_path" 2>&1)
         local chsh_status=$?
 
         log_msg "INFO" "chsh output: $chsh_output"
         if [ $chsh_status -eq 0 ]; then
             print_success "Default shell changed to Zsh."
-            print_info "You may need to log out and log back in for the change to take full effect."
         else
             print_error "Failed to change shell. You may need to do it manually."
             print_info "Command: chsh -s $zsh_path"
@@ -262,7 +262,7 @@ install_sniper_function() {
     fi
 
     print_info "Adding/Updating the 'sniper' environment activator in $zshrc_file..."
-    
+
     # The new function block to be added
     local sniper_function_block
     read -r -d '' sniper_function_block << EOF
@@ -303,7 +303,7 @@ EOF
     # Append the block to .zshrc and log it
     echo "$sniper_function_block" >> "$zshrc_file"
     log_msg "INFO" "Appended new function block to .zshrc."
-    
+
     print_success "Sniper command integrated successfully."
     print_info "Please start a new shell session (or run 'source ~/.zshrc') for changes to take effect."
 }
@@ -314,14 +314,14 @@ main() {
     mkdir -p config
     # Start with a clean log file
     echo "" > "$LOG_FILE"
-    
+
     log_msg "INFO" "SNIPER Toolkit Installation Started"
     log_msg "INFO" "Installer Version: 1.2"
     log_msg "INFO" "Timestamp: $(date)"
     log_msg "INFO" "--------------------------------------"
-    
+
     print_header
-    
+
     run_setup
     run_build
     install_zsh_plugins
@@ -329,7 +329,7 @@ main() {
     install_sniper_function
 
     log_msg "INFO" "==================== INSTALLATION COMPLETE ===================="
-    
+
     echo -e "\n\n${C_GREEN}${C_BOLD}✅ SNIPER Toolkit installation complete!${C_RESET}"
     echo -e "--------------------------------------------------------------------------"
     echo -e "A detailed installation report has been saved to:${C_YELLOW} $LOG_FILE ${C_RESET}"

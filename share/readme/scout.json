@@ -1,0 +1,118 @@
+{
+    "tool_name": "scout",
+    "layout": [
+        {
+            "component": "Panel",
+            "title": "[bold magenta]SNIPER: Scout[/]",
+            "subtitle": "Advanced URL Intelligence & Risk Analyzer",
+            "style": "magenta",
+            "content": [
+                {
+                    "component": "Text",
+                    "text": "Scout is a specialized reconnaissance tool designed to analyze URLs for security threats, tracking parameters, and obfuscation techniques without exposing the user to malicious payloads.\n\nIt combines [bold green]Static Heuristics[/], [bold cyan]Network Intelligence[/], and [bold red]Threat Reputation Feeds[/] to provide a comprehensive risk assessment."
+                }
+            ]
+        },
+        {
+            "component": "Panel",
+            "title": "[bold blue]Usage[/]",
+            "style": "blue",
+            "content": [
+                {
+                    "component": "Markup",
+                    "text": "  scout [bold cyan]<URL>[/] [yellow][OPTIONS][/]\n  scout [yellow]--stdin[/] < [dim]urls.txt[/]"
+                }
+            ]
+        },
+        {
+            "component": "Panel",
+            "title": "[bold yellow]Options & Flags[/]",
+            "style": "yellow",
+            "content": [
+                {
+                    "component": "Columns",
+                    "items": [
+                        {
+                            "component": "Markup",
+                            "text": "[bold cyan]--reputation[/]\n[dim]Enable API checks (VT, URLhaus, etc). Requires API keys.[/]"
+                        },
+                        {
+                            "component": "Markup",
+                            "text": "[bold cyan]--offline[/]\n[dim]Perform static analysis only. No network requests.[/]"
+                        },
+                        {
+                            "component": "Markup",
+                            "text": "[bold cyan]-o, --output <FILE>[/]\n[dim]Save report to file. Supports .json, .txt, .html[/]"
+                        },
+                        {
+                            "component": "Markup",
+                            "text": "[bold cyan]--json[/]\n[dim]Output raw JSON to stdout (for piping).[/]"
+                        },
+                        {
+                            "component": "Markup",
+                            "text": "[bold cyan]--stdin[/]\n[dim]Read URLs from standard input (pipe mode).[/]"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "component": "Panel",
+            "title": "[bold green]Analysis Logic[/]",
+            "style": "green",
+            "content": [
+                {
+                    "component": "Text",
+                    "text": "Scout calculates a Risk Score (0-100+) based on 4 layers:"
+                },
+                {
+                    "component": "Columns",
+                    "items": [
+                        {
+                            "component": "Markup",
+                            "text": "1. [bold]Network Chain[/]\n- Unshortening URLs\n- Detecting Meta Refresh\n- Circular Redirects\n- Protocol Downgrades"
+                        },
+                        {
+                            "component": "Markup",
+                            "text": "2. [bold]Static Syntax[/]\n- Direct IP Usage\n- Embedded Creds (@)\n- Suspicious TLDs\n- Executable Extensions"
+                        },
+                        {
+                            "component": "Markup",
+                            "text": "3. [bold]Advanced Modules[/]\n- Homoglyph/Spoofing\n- High Entropy (DGA)\n- DNS Age & MX Records"
+                        },
+                        {
+                            "component": "Markup",
+                            "text": "4. [bold]Reputation[/]\n- VirusTotal\n- Google Safe Browsing\n- URLhaus\n- PhishTank"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "component": "Panel",
+            "title": "[bold red]Configuration (API Keys)[/]",
+            "style": "red",
+            "content": [
+                {
+                    "component": "Text",
+                    "text": "To use [bold]--reputation[/], configure your keys in [italic]sniper-config.json[/] or use configer:"
+                },
+                {
+                    "component": "Markup",
+                    "text": "[dim]$[/] configer set tools scout api_keys virustotal [green]\"YOUR_KEY\"[/]\n[dim]$[/] configer set tools scout api_keys google_safe_browsing [green]\"YOUR_KEY\"[/]"
+                }
+            ]
+        },
+        {
+            "component": "Panel",
+            "title": "[bold white]Examples[/]",
+            "style": "white",
+            "content": [
+                {
+                    "component": "Markup",
+                    "text": "[dim]# Basic Scan (Unshorten & Heuristics)[/]\n[bold]scout https://bit.ly/suspicious[/]\n\n[dim]# Full Scan with Threat Intel & HTML Report[/]\n[bold]scout https://fake-bank.com --reputation -o report.html[/]\n\n[dim]# Pipe from Social-Dive to Scout[/]\n[bold]social-dive \"target\" --json | scout --stdin[/]"
+                }
+            ]
+        }
+    ]
+}

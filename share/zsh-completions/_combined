@@ -1,0 +1,42 @@
+#compdef combined
+
+# Zsh completion script for the SNIPER 'combined' tool
+# Version 1.0
+
+_combined() {
+    local -a options
+
+    # Define all options and their descriptions for the _arguments function.
+    options=(
+        # --- Simple Flags (no arguments) ---
+        '(-h --help)'{-h,--help}'[Show the help screen]'
+        '--summary[Include a project summary at the top]'
+        '--no-gitignore[Do not respect .gitignore files]'
+        '--no-comments[Remove comments from source files]'
+        '--no-empty-lines[Remove empty lines from source files]'
+        '--cost[Estimate API costs based on token count]'
+        '--copy[Copy the final output to the clipboard]'
+
+        # --- Options with a single argument ---
+        '(-o --output)'{-o,--output=}'[Specify the output file]:output_file:_files'
+        
+        # --- Options with a fixed list of choices ---
+        '--format=[Output format for code blocks]:format:(text markdown)'
+
+        # --- Options that can take multiple arguments ---
+        # The '*' prefix allows the option to be used multiple times, or take multiple values.
+        # This is perfect for --include, --exclude-dir, etc.
+        '(*-i *--include)'{'*-i','*--include'}'=[Specify files/patterns to include]:patterns:_files'
+        '*--include-ext=[File extensions to include (space-separated)]'
+        '*--exclude-dir=[Directories to exclude (space-separated)]'
+        '*--exclude-prefix=[Prefixes to exclude (space-separated)]'
+        '*--exclude-file=[Specific files to exclude (space-separated)]'
+
+        # --- Positional Arguments ---
+        # The first and only positional argument is the source directory.
+        '1:source directory to process:_files -/'
+    )
+    
+    # Execute the completion function
+    _arguments $options
+}

@@ -66,7 +66,7 @@ deactivate() {
     ZSH_AUTOSUGGEST_STRATEGY=()
 
     # Unset virtual env variables
-  	source "$VIRTUAL_ENV/etc/onexit.sh"
+        source "$VIRTUAL_ENV/etc/onexit.sh"
     unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT PYTHONPATH
 
     # Unload helper functions
@@ -74,7 +74,7 @@ deactivate() {
 
     # Refresh command hash table
     hash -r 2>/dev/null
-	  # unset all alias
+          # unset all alias
     # If the syntax-highlighting plugin provided cleanup hooks, try to call them:
     if (( $+functions[zsh_highlight_unload] )); then
         zsh_highlight_unload 2>/dev/null || true
@@ -110,7 +110,7 @@ export PATH
 
 # Update PYTHONPATH safely
 if [ -n "${PYTHONPATH:-}" ]; then
-  PYTHONPATH="${VIRTUAL_ENV}:${PYTHONPATH}"
+  PYTHONPATH="${VIRTUAL_ENV}"
 else
   PYTHONPATH="${VIRTUAL_ENV}"
 fi

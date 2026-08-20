@@ -1,0 +1,47 @@
+#compdef sniper-crypt
+
+# Zsh completion script for the SNIPER 'sniper-crypt' tool
+# Version 1.0 - Context-aware for sub-commands
+
+_sniper-crypt() {
+    local -a commands
+    local -a common_options
+    
+    # Define the sub-commands
+    commands=(
+        'encrypt:Encrypt a file or directory'
+        'decrypt:Decrypt a file or directory'
+    )
+
+    # Define common options available for both sub-commands
+    common_options=(
+        '(-h --help)'{-h,--help}'[Show the help screen]'
+        '(-r --remove)'{-r,--remove}'[Securely remove the original file(s) after operation]'
+        '(-p --password)'{-p,--password=}'[Provide the password via command line (insecure)]'
+    )
+    
+    # --- Main Logic ---
+    # The _guard function is used to restrict completions after a certain point.
+    # Here, we restrict completions after the first argument (the sub-command).
+    _guard "You must specify 'encrypt' or 'decrypt'." && return 0
+
+    # If we are completing the first argument, offer the sub-commands.
+    if (( CURRENT == 2 )); then
+        _describe 'command' commands && return 0
+    fi
+    
+    # If a sub-command has been chosen, complete its options and file paths.
+    # The 'words' array holds the command line arguments.
+    case ${words[2]} in
+        encrypt)
+            _arguments -s -S \
+                $common_options \
+                '*:file or directory to encrypt:_files'
+            ;;
+        decrypt)
+            _arguments -s -S \
+                $common_options \
+                '*:file or directory to decrypt:_files -g "*.enc"'
+            ;;
+    esac
+}

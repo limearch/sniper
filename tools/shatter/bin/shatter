@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+# File: tools/shatter/bin/shatter
+# Description: CLI Entry point.
+
+import sys
+import argparse
+import time
+from pathlib import Path
+
+# UI Imports
+from rich.console import Console
+from rich.live import Live
+
+# Internal imports setup
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[3]
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+    from lib.sniper_env import env, Colors
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+    from shatter_tool.core import CrackEngine, ShatterManager
+    from shatter_tool.ui import ShatterUI
+    from shatter_tool.utils import save_report
+except ImportError as e:
+    print(f"Critical Error: {e}")
+    sys.exit(1)
+
+def main():
+    parser = argparse.ArgumentParser(description="Sniper Shatter Tool")
+    parser.add_argument("-t", "--target", required=True, help="JSON file describing WinZip AES target info")
+    parser.add_argument("-w", "--wordlist", required=True, help="Wordlist file path")
+    parser.add_argument("--threads", type=int, default=0, help="Thread count (0 = auto)")
+    parser.add_argument("-o", "--output", default="cracked_report.json")
+    args = parser.parse_args()
+
+    console = Console()
+
+    # 1. Load Target Information
+    manager = ShatterManager(args.target, args.wordlist, args.threads)
+    target_data = manager.target_data
+
+    salt_hex = target_data['salt_hex']
+    verifier_hex = target_data['password_verifier_hex']
+    
+    # Determine AES Key Length based on strength byte
+    strength = target_data.get("aes_info", {}).get("strength_byte", 3)
+    key_len = {1: 16, 2: 24, 3: 32}.get(strength, 32)
+
+    console.print(f"[green][+][/green] Target loaded: {Path(args.target).name}")
+    console.print(f"[green][+][/green] Key Length: {key_len} bytes")
+    console.print(f"[green][+][/green] Initializing Engine...")
+
+    # 2. Initialize Engine and UI
+    engine = CrackEngine()
+    ui = ShatterUI(console, Path(args.target).name)
+
+    # 3. Define the Callback Wrapper
+    # This function is called by C++ thread (via ctypes trampoline)
+    def on_progress(count, word_ptr):
+        ui.update(count, word_ptr)
+
+    # 4. Run the Attack Loop
+    found_password = None
+    start_time = time.time()
+
+    # 'Live' context manager handles the screen redrawing
+    with Live(ui.get_renderable(), refresh_per_second=10, console=console) as live:
+        
+        # Start Cracking (Blocking call, but C++ calls python callback)
+        try:
+            found_password = engine.crack(
+                args.wordlist,
+                salt_hex,
+                verifier_hex,
+                key_len,
+                args.threads,
+                ui_callback=on_progress
+            )
+        except Exception as e:
+            live.stop()
+            console.print(f"[bold red]Critical Error during engine execution:[/bold red] {e}")
+            sys.exit(1)
+        
+        # Final UI update to show green success state if found
+        ui.finished = True
+        ui.found_password = found_password
+        live.update(ui.get_renderable())
+
+    # 5. Report Results
+    elapsed = time.time() - start_time
+    print() # Newline
+
+    if found_password:
+        env.log.success(f"Password Found: {found_password}")
+        
+        # Save detailed report
+        stats = {
+            "total_tried": ui.hashes_processed,
+            "time_taken": elapsed,
+            "avg_speed": ui.hashes_processed / elapsed if elapsed > 0 else 0
+        }
+        
+        save_report(
+            target_data,
+            found_password,
+            stats,
+            args.wordlist,
+            args.output
+        )
+    else:
+        env.log.warning("Password not found in wordlist.")
+
+if __name__ == "__main__":
+    main()

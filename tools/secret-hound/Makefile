@@ -1,77 +1,78 @@
-# File: tools/secret-hound/Makefile
-# Description: Makefile for building the C++ core and Go git_analyzer for secret-hound. (FIXED)
+# Makefile for the SNIPER 'secret-hound' tool (v2.1 - Safe Clean)
+# This Makefile assumes the user-facing script 'secret-hound' lives in the project's main 'sniper/bin' directory.
+# The 'bin' directory created here is for compiled backends ONLY.
 
-# --- Compiler and Flags ---
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I../../lib/c_utils -Isrc/hound_core
-LDFLAGS = -L../../lib/c_utils -lsniper_c_utils -lpthread
+# --- Variables ---
+SNIPER_ROOT := ../..
+C_UTILS_DIR := $(SNIPER_ROOT)/lib/c_utils
+C_UTILS_LIB := $(C_UTILS_DIR)/libsniper_c_utils.a
 
-# --- Go Compiler ---
-GC = go
+CXX := g++
+CXXFLAGS := -std=c++17 -Wall -Wextra -Isrc -I$(C_UTILS_DIR)
+LDFLAGS := -L$(C_UTILS_DIR) -lsniper_c_utils -lpthread
 
-# --- Directories ---
-SRC_DIR = src
-CORE_DIR = src/hound_core
-GO_DIR = src/git_analyzer
-BIN_DIR = bin
-OBJ_DIR = obj
+GO := go
 
-# --- Source Files ---
-# Find all .cpp files in the source directories
-CXX_SOURCES = $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(CORE_DIR)/*.cpp)
-# Get corresponding object file names
-OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(CXX_SOURCES))
+# --- Directories & Targets (Corrected Paths) ---
+BUILD_DIR := bin
+OBJS_DIR := obj
 
-# --- Target Executables ---
-# The C++ binary is the "core" worker.
-CORE_EXEC = $(BIN_DIR)/hound-core
-# The Go binary is the git analyzer.
-GO_EXEC = $(BIN_DIR)/git_analyzer
-# The user-facing executable is the Python script, which is already in the bin/ directory.
-PYTHON_EXEC = $(BIN_DIR)/secret-hound
+HOUND_CORE_TARGET := $(BUILD_DIR)/hound-core
+GIT_ANALYZER_TARGET := $(BUILD_DIR)/git_analyzer
 
+# --- Source Files & Objects ---
+SRCS := $(wildcard src/hound_core/*.cpp) src/main.cpp
+OBJS := $(patsubst src/%.cpp, $(OBJS_DIR)/%.o, $(SRCS))
 
-# --- Main Build Rule ---
-all: $(CORE_EXEC) $(GO_EXEC) $(PYTHON_EXEC)
+# --- Default Target ---
+.PHONY: all
+all: build
 
-# --- Rule to build the C++ core executable ---
-$(CORE_EXEC): $(OBJECTS)
-	@mkdir -p $(BIN_DIR)
-	$(CXX) $(OBJECTS) -o $@ $(LDFLAGS)
-	@echo "✓ C++ core scanner created: $@"
+.PHONY: build
+build: $(HOUND_CORE_TARGET) $(GIT_ANALYZER_TARGET)
 
-# --- Rule to build the Go executable ---
-$(GO_EXEC): $(GO_DIR)/main.go
-	@mkdir -p $(BIN_DIR)
-	$(GC) build -o $@ $(GO_DIR)/main.go
-	@echo "✓ Go git analyzer created: $@"
+# --- Build Rules ---
 
-# --- START OF FIX ---
-# This rule now ensures the Python entrypoint is executable.
-# It no longer copies a file, but assumes the entrypoint script is already in place.
-# We will create the `bin` directory if it doesn't exist.
-$(PYTHON_EXEC):
-	@mkdir -p $(BIN_DIR)
-	@chmod +x $(PYTHON_EXEC)
-	@echo "✓ Python entrypoint is executable: $@"
-# --- END OF FIX ---
+# Rule to build the C++ core scanner
+$(HOUND_CORE_TARGET): $(OBJS) $(C_UTILS_LIB)
+	@echo "-> Linking C++ core scanner: $@"
+	@mkdir -p $(dir $@)
+	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
 
-
-# --- Rule to compile .cpp files into .o object files ---
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(OBJ_DIR) $(OBJ_DIR)/hound_core
+# Rule to compile C++ object files (Handles both src/ and src/hound_core/)
+$(OBJS_DIR)/%.o: src/%.cpp
+	@echo "-> Compiling C++ object: $@"
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# --- Phony Targets ---
-.PHONY: all clean install
+$(OBJS_DIR)/hound_core/%.o: src/hound_core/%.cpp
+	@echo "-> Compiling C++ object: $@"
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# Rule to build the Go git analyzer
+$(GIT_ANALYZER_TARGET): src/git_analyzer/main.go
+	@echo "-> Building Go git analyzer: $@"
+	@mkdir -p $(dir $@)
+	$(GO) build -o $@ $<
+
+# Dependency rule for the central C utility library
+$(C_UTILS_LIB):
+	@echo "-> Building dependency: libsniper_c_utils.a..."
+	@$(MAKE) -C $(C_UTILS_DIR) --no-print-directory
+
+# --- Cleanup Rule (Now Safe) ---
+.PHONY: clean
 clean:
-	@rm -rf $(OBJ_DIR)
-	@echo "🧹 Cleaned up build artifacts."
+	@echo "-> Cleaning up secret-hound build artifacts..."
+	@rm -rf $(GIT_ANALYZER_TARGET) $(HOUND_CORE_TARGET) $(OBJS_DIR)
 
-install: all
-	@mkdir -p ../../bin
-	cp $(CORE_EXEC) ../../bin/hound-core
-	cp $(GO_EXEC) ../../bin/git_analyzer
-	cp $(PYTHON_EXEC) ../../bin/secret-hound
-	@echo "✓ secret-hound and its components installed to main SNIPER bin directory."
+# --- Installation Rule ---
+# This rule copies the compiled backends to a central location.
+# This makes them findable by the main 'secret-hound' script.
+.PHONY: install
+install: build
+	@echo "-> Installing secret-hound backends to sniper/bin..."
+	@mkdir -p $(SNIPER_ROOT)/bin
+	@cp $(HOUND_CORE_TARGET) $(SNIPER_ROOT)/bin/
+	@cp $(GIT_ANALYZER_TARGET) $(SNIPER_ROOT)/bin/

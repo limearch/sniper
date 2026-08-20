@@ -1,0 +1,79 @@
+#compdef g-pass
+
+# Zsh completion script for the SNIPER 'g-pass' tool
+# Version 1.0 - Context-aware
+
+_g-pass() {
+    local -a common_options
+    local -a fast_mode_options
+    local -a crunch_options
+    local -a smart_options
+    
+    # --- Common Options (available in most modes) ---
+    common_options=(
+        '(-h --help)'{-h,--help}'[Show the help screen]'
+        '(-i --interactive)'{-i,--interactive}'[Enter interactive setup mode]'
+        '(-c --copy)'{-c,--copy}'[Copy the first password to clipboard]'
+        '(-n --count)'{-n,--count=}'[Number of passwords to generate]:count'
+        '--save=[Save output to a file (txt, json, csv)]:output_file:_files'
+        '--split-size=[Split output file into chunks (e.g., 10M, 1G)]:size'
+    )
+
+    # --- Fast Mode Options ---
+    # These are for standard random password generation
+    fast_mode_options=(
+        '(-l --length)'{-l,--length=}'[Set password length]:length'
+        '(-p --preset)'{-p,--preset=}'[Use a predefined preset]:preset:(human email wifi random)'
+        '(-e --exclude)'{-e,--exclude=}'[Exclude specific characters]:characters'
+        '--no-lower[Disable lowercase characters]'
+        '--no-upper[Disable uppercase characters]'
+        '--no-numbers[Disable numeric characters]'
+        '--no-symbols[Disable symbol characters]'
+        '--unicode[Include Unicode characters]'
+    )
+
+    # --- Crunch Mode Options ---
+    crunch_options=(
+        '--crunch[Generate all combinations]: :_crunch_args'
+        '--crunch-pattern=[Generate based on a pattern (@, ,, %, ^)]:pattern'
+    )
+    
+    # --- Smart Mode Options ---
+    smart_options=(
+        '--smart=[Generate password from a natural language prompt]:prompt'
+    )
+
+
+    # --- Main Logic: Decide which options to show ---
+    # The 'words' array contains the command line arguments entered so far.
+    # We check if a specific mode-defining flag is already present.
+    if [[ " ${words[@]} " == *" --crunch "* || " ${words[@]} " == *" --crunch-pattern "* ]]; then
+        # If in crunch mode, only show common options and crunch options
+        _arguments -s -S $common_options $crunch_options
+    elif [[ " ${words[@]} " == *" --smart "* ]]; then
+        # If in smart mode, show common and smart options
+        _arguments -s -S $common_options $smart_options
+    else
+        # Default to Fast Mode: show all options together
+        _arguments -s -S $common_options $fast_mode_options $crunch_options $smart_options
+    fi
+}
+
+# Helper function to handle arguments for --crunch
+_crunch_args() {
+    # After '--crunch', we expect min_length, then max_length, then charset
+    case $CURRENT in
+        2)
+            _message 'minimum password length'
+            ;;
+        3)
+            _message 'maximum password length'
+            ;;
+        4)
+            _message 'character set'
+            ;;
+    esac
+}
+
+# This registers the helper function to be called when needed
+_g-pass "$@"

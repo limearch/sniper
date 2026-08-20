@@ -1,0 +1,39 @@
+┌──(SNIPER💀CODER)-[~/sniper/tools/scout]
+└─# scout "https://www.google.com/search?q=test&utm_source=facebook&fbclid=IwAR2&ref=src"                                           ╭───────────────────────── Scout Report ─────────────────────────╮
+│ Target:                                        SUSPICIOUS (30) ││ https://www.google.com/search?q=test&utm_sourc…                │
+╰────────────────────────────────────────────────────────────────╯╭─────────────────────── Risk Indicators ────────────────────────╮
+│ - Meta Refresh (Client-side Redirect)                          ││ - No Email (MX) Records                                        │
+╰────────────────────────────────────────────────────────────────╯! Meta Refresh Detected
+┌──(SNIPER💀CODER)-[~/sniper/tools/scout]                         └─#
+-------------------------------------------
+┌──(SNIPER💀CODER)-[~/sniper/tools/scout]                                                       └─# scout "http://secure-paypal.com:8080@192.168.1.50/update.exe" --offline                     ╭──────────────────────────────────────── Scout Report ────────────────────────────────────────╮
+│ Target: http://secure-paypal.com:8080@192.168.1.50/update.exe                SUSPICIOUS (40) │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯╭────────────────────────────────────── Risk Indicators ───────────────────────────────────────╮
+│ - Embedded Credentials                                                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯┌──(SNIPER💀CODER)-[~/sniper/tools/scout]                                                       └─#
+-------------------------------------------
+┌──(SNIPER💀CODER)-[~/sniper/tools/scout]                                                       └─# scout https://tinyurl.com/2g9mqh                                                            ╭──────────────────────────────────────── Scout Report ────────────────────────────────────────╮
+│ Target: https://tinyurl.com/2g9mqh                                                 SAFE (10) │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯╭────────────────────────────────────── Risk Indicators ───────────────────────────────────────╮
+│ - No Email (MX) Records                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯┌──(SNIPER💀CODER)-[~/sniper/tools/scout]                                                       └─#
+-------------------------------------------
+┌──(SNIPER💀CODER)-[~/sniper/tools/scout]                                                       └─# scout "http://xn--pple-43d.com" --offline                                                   ╭──────────────────────────────────────── Scout Report ────────────────────────────────────────╮
+│ Target: http://xn--pple-43d.com                                               MALICIOUS (50) │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯╭────────────────────────────────────── Risk Indicators ───────────────────────────────────────╮
+│ - Punycode Domain Detected (аpple)                                                           │
+│ - Script Mixing Attack (Homoglyph)                                                           │╰──────────────────────────────────────────────────────────────────────────────────────────────╯┌──(SNIPER💀CODER)-[~/sniper/tools/scout]
+└─# scout "http://x8z-9q-vm2.com/login/YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXphYmNkZWY=" --offline  ╭──────────────────────────────────────── Scout Report ────────────────────────────────────────╮
+│ Target:                                                                      SUSPICIOUS (30) ││ http://x8z-9q-vm2.com/login/YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXphYmNkZWY=                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯╭────────────────────────────────────── Risk Indicators ───────────────────────────────────────╮
+│ - High Entropy Path/Query (5.06)                                                             │
+│ - Suspicious Base64-like String                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯┌──(SNIPER💀CODER)-[~/sniper/tools/scout]
+└─#
+-------------------------------------------
+┌──(SNIPER💀CODER)-[~/sniper/tools/scout]                                                       └─# scout "http://testsafebrowsing.appspot.com/s/phishing.html" --reputation                    ╭──────────────────────────────────────── Scout Report ────────────────────────────────────────╮
+│ Target: http://testsafebrowsing.appspot.com/s/phishing.html                        SAFE (10) │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯╭────────────────────────────────────── Risk Indicators ───────────────────────────────────────╮
+│ - No Email (MX) Records                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯┌──(SNIPER💀CODER)-[~/sniper/tools/scout]                                                       └─#
+-------------------------------------------

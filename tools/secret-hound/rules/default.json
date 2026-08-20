@@ -1,51 +1,168 @@
 [
   {
-    "id": "AWS_ACCESS_KEY",
+    "id": "AWS_ACCESS_KEY_ID",
     "description": "AWS Access Key ID",
     "regex": "AKIA[0-9A-Z]{16}",
     "confidence": "High"
   },
   {
-    "id": "AWS_SECRET_KEY",
+    "id": "AWS_SECRET_ACCESS_KEY",
     "description": "AWS Secret Access Key",
-    "regex": "[Aa][Ww][Ss](.{0,20})?['\\\"][0-9a-zA-Z\\/\\+]{40}['\\\"]",
-    "confidence": "Medium"
+    "regex": "(?i)aws(.{0,20})?(?-i)['\\\"][0-9a-zA-Z\\/\\+]{40}['\\\"]",
+    "confidence": "Medium",
+    "min_entropy": 4.5
   },
   {
-    "id": "PRIVATE_KEY_PEM",
-    "description": "Private Key (PEM format header)",
+    "id": "PEM_PRIVATE_KEY",
+    "description": "Private Key (PEM format)",
     "regex": "-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----",
     "confidence": "High"
   },
   {
-    "id": "SLACK_TOKEN",
-    "description": "Slack Token (Legacy and OAuth)",
-    "regex": "(xox[pboar]-[0-9]{10,13}-[0-9]{10,13}-[0-9]{10,13}-[a-f0-9]{32})",
-    "confidence": "Medium"
+    "id": "GITHUB_PERSONAL_ACCESS_TOKEN",
+    "description": "GitHub Personal Access Token (Classic)",
+    "regex": "ghp_[0-9a-zA-Z]{36}",
+    "confidence": "High"
   },
   {
-    "id": "GITHUB_TOKEN",
-    "description": "GitHub Personal Access Token",
-    "regex": "ghp_[0-9a-zA-Z]{36}",
+    "id": "GITHUB_FINE_GRAINED_TOKEN",
+    "description": "GitHub Fine-Grained Personal Access Token",
+    "regex": "github_pat_[0-9a-zA-Z_]{82}",
+    "confidence": "High"
+  },
+  {
+    "id": "GITHUB_OAUTH_ACCESS_TOKEN",
+    "description": "GitHub OAuth Access Token",
+    "regex": "gho_[0-9a-zA-Z]{36}",
+    "confidence": "High"
+  },
+  {
+    "id": "SLACK_BOT_TOKEN",
+    "description": "Slack Bot Token",
+    "regex": "xoxb-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24}",
+    "confidence": "High"
+  },
+  {
+    "id": "SLACK_USER_TOKEN",
+    "description": "Slack User Token",
+    "regex": "xoxp-[0-9]{10,13}-[0-9]{10,13}-[0-9]{10,13}-[a-fA-F0-9]{32}",
+    "confidence": "High"
+  },
+  {
+    "id": "SLACK_WEBHOOK_URL",
+    "description": "Slack Webhook URL",
+    "regex": "https://hooks.slack.com/services/T[a-zA-Z0-9_]{8,12}/B[a-zA-Z0-9_]{8,12}/[a-zA-Z0-9_]{24}",
     "confidence": "High"
   },
   {
     "id": "STRIPE_API_KEY",
     "description": "Stripe API Key",
-    "regex": "(sk|pk)_(test|live)_[0-9a-zA-Z]{24,99}",
+    "regex": "(?i)(sk|pk)_(test|live)_[0-9a-zA-Z]{24,99}",
     "confidence": "High"
   },
   {
-    "id": "GENERIC_HIGH_ENTROPY",
-    "description": "Generic secret (high entropy string)",
-    "regex": "(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])[a-zA-Z0-9\\-_\\.!@#$%^&*()+=]{20,64}",
+    "id": "GOOGLE_API_KEY",
+    "description": "Google Cloud Platform API Key",
+    "regex": "AIza[0-9A-Za-z\\-_]{35}",
+    "confidence": "High"
+  },
+  {
+    "id": "GOOGLE_OAUTH_CLIENT_ID",
+    "description": "Google OAuth Client ID",
+    "regex": "[0-9]+-[0-9a-zA-Z_]{32}\\.apps\\.googleusercontent\\.com",
+    "confidence": "High"
+  },
+  {
+    "id": "HEROKU_API_KEY",
+    "description": "Heroku Platform API Key",
+    "regex": "[hH][eE][rR][oO][kK][uU].{0,20}[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+    "confidence": "Medium"
+  },
+  {
+    "id": "DISCORD_BOT_TOKEN",
+    "description": "Discord Bot Token",
+    "regex": "[MN][A-Za-z0-9_\\.]{23,26}\\.[A-Za-z0-9_\\.]{6}\\.[A-Za-z0-9_\\-]{27,38}",
+    "confidence": "High"
+  },
+  {
+    "id": "DISCORD_WEBHOOK_URL",
+    "description": "Discord Webhook URL",
+    "regex": "https://discord(app)?.com/api/webhooks/[0-9]{18,19}/[a-zA-Z0-9_\\-]+",
+    "confidence": "High"
+  },
+  {
+    "id": "TWILIO_API_KEY",
+    "description": "Twilio API Key",
+    "regex": "SK[0-9a-fA-F]{32}",
+    "confidence": "High"
+  },
+  {
+    "id": "SENDGRID_API_KEY",
+    "description": "SendGrid API Key",
+    "regex": "SG\\.[0-9a-zA-Z_\\-]{22}\\.[0-9a-zA-Z_\\-]{43}",
+    "confidence": "High"
+  },
+  {
+    "id": "NPM_ACCESS_TOKEN",
+    "description": "NPM Access Token",
+    "regex": "npm_[a-zA-Z0-9]{36}",
+    "confidence": "High"
+  },
+  {
+    "id": "DOCKER_HUB_ACCESS_TOKEN",
+    "description": "Docker Hub Access Token",
+    "regex": "dckr_pat_[a-zA-Z0-9_\\-]{24,}",
+    "confidence": "High"
+  },
+  {
+    "id": "CLOUDINARY_API_SECRET",
+    "description": "Cloudinary API Secret",
+    "regex": "(?i)cloudinary://[0-9]{15}:[0-9a-zA-Z_\\-]{27}@[a-z]+",
+    "confidence": "High"
+  },
+  {
+    "id": "TELEGRAM_BOT_TOKEN",
+    "description": "Telegram Bot Token",
+    "regex": "[0-9]{8,10}:[a-zA-Z0-9_\\-]{35}",
+    "confidence": "High"
+  },
+  {
+    "id": "GENERIC_HEX_KEY_32",
+    "description": "Generic 32-character Hex Key",
+    "regex": "(?i)['\\\"]([a-f0-9]{32})['\\\"]",
+    "confidence": "Low",
+    "min_entropy": 3.0
+  },
+  {
+    "id": "GENERIC_HEX_KEY_64",
+    "description": "Generic 64-character Hex Key",
+    "regex": "(?i)['\\\"]([a-f0-9]{64})['\\\"]",
     "confidence": "Low",
     "min_entropy": 3.5
   },
   {
-    "id": "BASIC_AUTH_URL",
-    "description": "URL with embedded credentials",
+    "id": "GENERIC_BASE64_KEY_LONG",
+    "description": "Generic Base64 Key (long)",
+    "regex": "[a-zA-Z0-9\\/\\+=]{40,}",
+    "confidence": "Low",
+    "min_entropy": 4.5
+  },
+  {
+    "id": "URL_WITH_CREDENTIALS",
+    "description": "URL with embedded username and password",
     "regex": "[a-zA-Z]+://[^\\s:@/]+:[^\\s:@/]+@[^\\s]+",
+    "confidence": "Medium"
+  },
+  {
+    "id": "SSH_PASSWORD_IN_URL",
+    "description": "SSH URL with embedded password",
+    "regex": "ssh://[^@]+@([a-zA-Z0-9._-]+)",
+    "confidence": "Medium"
+  },
+  {
+    "id": "FIREBASE_SERVICE_ACCOUNT",
+    "description": "Firebase Service Account JSON",
+    "regex": "\"type\": \"service_account\"",
     "confidence": "Medium"
   }
 ]

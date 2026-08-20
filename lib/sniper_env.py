@@ -59,7 +59,7 @@ class ColorFormatter(logging.Formatter):
     FORMATS = {
         logging.DEBUG: f"{CYAN}[%(levelname)s]{RESET} {CYAN}[%(name)s] %(message)s{RESET}",
         logging.INFO: f"{BOLD}{BLUE}[%(levelname)s]{RESET} {BOLD}{CYAN}[%(name)s]{RESET} %(message)s",
-        logging.WARNING: f"{BOLD}{YELLOW}[WARN]{RESET} {BOLD}{CYAN}[%(name)s]{RESET} %(message)s",
+        logging.WARNING: f"{BOLD}{YELLOW}[WARNING]{RESET} {BOLD}{CYAN}[%(name)s]{RESET} %(message)s",
         UPDATE_LEVEL_NUM: f"{BOLD}{GREEN}[UPDATE]{RESET} {BOLD}{CYAN}[%(name)s]{RESET} %(message)s",
         SUCCESS_LEVEL_NUM: f"{BOLD}{WHITE}[{GREEN}SUCCESS{WHITE}]{RESET} {BOLD}{CYAN}[%(name)s]{RESET} %(message)s",
         logging.ERROR: f"{BOLD}{RED}[ERROR]{RESET} {BOLD}{CYAN}[%(name)s]{RESET} %(message)s",
@@ -69,7 +69,7 @@ class ColorFormatter(logging.Formatter):
     def format(self, record):
         # Override level name for WARNING to be 'WARN' for brevity
         if record.levelno == logging.WARNING:
-            record.levelname = 'WARN'
+            record.levelname = 'WARNING'
             
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
@@ -104,9 +104,12 @@ class SniperEnv:
         self.BIN_DIR = self.ROOT_DIR / "bin"
         self.CONFIG_PATH = self.CONFIG_DIR / "sniper-config.json"
         self.LOG_PATH = self.CONFIG_DIR / "sniper-config.log"
+        self.DOT_ENV_PATH = self.ROOT_DIR / ".env"
         
         self.PLATFORM = self._detect_platform()
         self.log = self._setup_logger()
+        # Load API keys from .env into a dictionary
+        self.api_keys = self._load_dot_env()
         self.log.debug("SniperEnv initialized. Project root: %s", self.ROOT_DIR)
         # Create a dedicated cache directory in the user's home folder.
         home_dir = Path.home()
@@ -123,7 +126,29 @@ class SniperEnv:
         self.PLATFORM = self._detect_platform()
         self.log = self._setup_logger()
         self.log.debug("SniperEnv initialized. Cache dir: %s", self.CACHE_DIR)
-        
+
+    def _load_dot_env(self) -> dict:
+            """Parses the .env file manually to avoid extra dependencies."""
+            keys = {}
+            if not self.DOT_ENV_PATH.exists():
+                return keys
+            
+            try:
+                with open(self.DOT_ENV_PATH, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        # Ignore comments and empty lines
+                        if not line or line.startswith("#"): continue
+                        
+                        if "=" in line:
+                            key, value = line.split("=", 1)
+                            # Remove quotes if present
+                            keys[key.strip()] = value.strip().strip('"').strip("'")
+            except Exception as e:
+                self.log.warning(f"Failed to load .env file: {e}")
+            
+            return keys
+    
     def command_exists(self, command: str) -> bool:
         """
         Checks if a command-line tool exists in the system's PATH.

@@ -1,0 +1,103 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "magenta",
+      "content": [{ "component": "Text", "text": "SNIPER: scan - Fast TCP Port Scanner", "style": "bold magenta", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]scan[/] [cyan]<HOST>[/] [green][OPTIONS][/]", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About The Tool[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": "A fast, multi-threaded TCP port scanner written in Python. It is designed for quick reconnaissance to discover open ports on a target host by attempting to establish a full TCP connection."
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[red]Requirements[/]",
+      "style": "red",
+      "content": [{
+        "component": "Markup",
+        "text": "This tool requires the [bold cyan]tqdm[/] Python library for its progress bar. You can install it via [dim]`pip install tqdm`[/]."
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Core Arguments[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[cyan]<HOST>[/]                  (Required) The target host IP address or domain name.",
+          "[green]-p, --ports <ports>[/]     Specify ports to scan. Can be a single port [dim](80)[/], a comma-separated list [dim](80,443)[/], or a range [dim](1-1024)[/].",
+          "[green]--top-ports[/]           A quick alternative to scan the top 18 most common ports."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]Behavior & Performance[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[green]-w, --workers <N>[/]     Set the number of concurrent scanning threads (default: 100).",
+          "[green]-t, --timeout <SEC>[/]   Set the connection timeout in seconds for each port (default: 0.5).",
+          "[green]-b, --banner[/]          Attempt to grab a service banner from open ports by sending a generic HTTP probe."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]Output Options[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[green]-o, --output <file>[/]     Save the scan output to a specified file (color codes are removed)."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Examples[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Perform a quick scan on the most common ports of a host",
+          "  [yellow]scan[/] [cyan]scanme.nmap.org[/] [green]--top-ports[/]",
+          "",
+          "[#] Scan for specific web-related ports on a target",
+          "  [yellow]scan[/] [cyan]example.com[/] [green]-p 80,443,8080[/]",
+          "",
+          "[#] Scan all ports from 1 to 1024 with banner grabbing and save to a file",
+          "  [yellow]scan[/] [cyan]192.168.1.1[/] [green]-p 1-1024 -b -o report.txt[/]",
+          "",
+          "[#] Perform a faster scan on a local network using more workers",
+          "  [yellow]scan[/] [cyan]192.168.1.50[/] [green]-p 1-1000 -w 200[/]",
+          "",
+          "[#] Scan a slow or firewalled host by increasing the timeout",
+          "  [yellow]scan[/] [cyan]external-server.com[/] [green]--top-ports -t 2.0[/]"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]Notes & Common Issues[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "• [bold]Port Specification:[/bold] You must provide ports to scan using either [cyan]-p[/] or [cyan]--top-ports[/].",
+          "• [bold]Scan Type:[/bold] This tool performs a TCP Connect scan, which is reliable but easily detectable and can be logged by firewalls.",
+          "• [bold]Accuracy:[/bold] A port showing as 'closed' may be blocked by a firewall. Results indicate what is reachable from your location.",
+          "• [bold]Banner Grabbing:[/bold] The banner grabbing feature is basic. It may not retrieve a banner from non-HTTP services."
+        ]
+      }]
+    }
+  ]
+}

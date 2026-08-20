@@ -42,7 +42,7 @@ def resize_image(image: Image.Image, new_width=100) -> tuple:
     resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
     return resized_image, new_height
 
-def image_to_ascii(image: Image.Image, charset_key: str, invert: bool, use_color: bool) -> str:
+def image_to_ascii(image: Image.Image, charset_key: str, invert: bool, use_color: bool, width: int) -> str:
     # This function's logic remains unchanged.
     charset = CHARSETS[charset_key]
     char_ramp = charset[::-1] if invert else charset
@@ -59,11 +59,29 @@ def image_to_ascii(image: Image.Image, charset_key: str, invert: bool, use_color
             # Use 24-bit true color escape codes
             color_code = f"\033[38;2;{r};{g};{b}m"
             color_ascii_str.append(color_code + char)
+
+            # --- START FIX ---
+            # Add newline at the end of each row
+            if (i + 1) % width == 0:
+                color_ascii_str.append("\n")
+            # --- END FIX ---
+            
         return "".join(color_ascii_str) + "\033[0m" # Reset color at the end
     else:
         grayscale_image = image.convert("L")
         pixels = grayscale_image.getdata()
-        return "".join([char_ramp[int((p / 255) * (len(char_ramp) - 1))] for p in pixels])
+        
+        # --- START FIX ---
+        # Original code returned one long line.
+        # This now builds the formatted string with newlines.
+        ascii_chars = [char_ramp[int((p / 255) * (len(char_ramp) - 1))] for p in pixels]
+        
+        # Format it with newlines
+        return "\n".join([
+            "".join(ascii_chars[i:i + width]) 
+            for i in range(0, len(ascii_chars), width)
+        ])
+        # --- END FIX ---
 
 def format_ascii_string(ascii_str: str, width: int) -> str:
     # This function's logic remains unchanged.
@@ -100,19 +118,21 @@ def main():
     
     # Handle color processing correctly.
     # We don't need a special function for color formatting if we build the string correctly.
-    raw_ascii_string = image_to_ascii(resized_image, args.charset, args.invert, args.color)
     
-    # The format_ascii_string needs to be aware of color codes.
-    # For now, a simpler approach is to print line by line.
-    # A more robust solution would be a color-aware formatter.
-    # Let's keep it simple and effective.
-    output_string = ""
-    if not args.color:
-        output_string = "\n".join([raw_ascii_string[i:i + resized_image.width] for i in range(0, len(raw_ascii_string), resized_image.width)])
-    else:
-        # Simple print for color to avoid complex parsing of escape codes
-        print(f"\n{raw_ascii_string}\n")
-        output_string = raw_ascii_string # Save the raw string for file output
+    # --- START FIX ---
+    # Pass the resized_image.width to the function so it can handle newlines
+    raw_ascii_string = image_to_ascii(resized_image, args.charset, args.invert, args.color, resized_image.width)
+    
+    # The string is now pre-formatted (with newlines) by the image_to_ascii function
+    output_string = raw_ascii_string
+    
+    # The old logic is no longer needed:
+    # if not args.color:
+    #    output_string = "\n".join([raw_ascii_string[i:i + resized_image.width] for i in range(0, len(raw_ascii_string), resized_image.width)])
+    # else:
+    #    print(f"\n{raw_ascii_string}\n")
+    #    output_string = raw_ascii_string
+    # --- END FIX ---
     
     if args.output:
         env.log.info(f"Saving output to {args.output}...")
@@ -122,8 +142,11 @@ def main():
             env.log.info(f"ASCII art saved successfully to '{args.output}'")
         except IOError as e:
             env.log.error(f"Could not save to file: {e}")
-    elif not args.color:
+    else:
+        # --- START FIX ---
+        # Simplified: Always print the (now pre-formatted) string if not saving to file.
         print(f"\n{output_string}\n")
+        # --- END FIX ---
 
 if __name__ == "__main__":
     try:

@@ -1,0 +1,53 @@
+#compdef fastfind
+
+# Zsh completion script for the SNIPER 'fastfind' tool
+
+_fastfind() {
+    # The state variable is used to handle arguments for specific options
+    local state
+
+    # Array to hold all option definitions
+    local -a options
+    options=(
+        # --- Filtering & Matching ---
+        '(-p --pattern)'{-p,--pattern=}'[Regex for filename]:pattern'
+        '(-t --type)'{-t,--type=}'[Filter by type (f,d,l)]:(f d l)'
+        '--size=[Filter by size e.g., +10K]:size'
+        '--mtime=[Filter by modification time e.g., -7d]:mtime'
+        '--owner=[Filter by username]:owner:_users'
+        '--perms=[Filter by octal permissions e.g., 755]:permissions'
+        '--content=[Regex for file content]:content_pattern'
+        '(-e --ext)'{-e,--ext=}'[Filter by file extension]:extension'
+        '-i[Enable case-insensitive matching]'
+        '--ignore-case[Enable case-insensitive matching]'
+
+        # --- Behavior Control ---
+        '(-m --max-depth)'{-m,--max-depth=}'[Limit search depth]:depth'
+        # The '*' allows the --exclude option to be used multiple times
+        '*--exclude=[Exclude a directory by name]:directory:_files -/'
+        '--no-hidden[Ignore hidden files/dirs (default)]'
+        '(-s --show-hidden)'{-s,--show-hidden}'[Include hidden files/dirs]'
+        '--ignore-vcs[Ignore files from VCS ignore files (default)]'
+        '--no-ignore[Disable all ignore-file logic]'
+
+        # --- Actions & Output ---
+        '--exec=[Execute command on each result (use {} as placeholder)]:command'
+        '--delete[Permanently delete found files/dirs]'
+        '--interactive[Prompt before each deletion (with --delete)]'
+        '(-l --long-listing)'{-l,--long-listing}'[Use detailed "ls -l" like format]'
+        '--with-line-number[Show line numbers with --content]'
+        '--format=[Output format]:format:(text json csv)'
+        '(-o --output)'{-o,--output=}'[Write output to a file]:output_file:_files'
+
+        # --- Performance & General ---
+        '--threads=[Set number of worker threads]:thread_count'
+        '(-v --version)'{-v,--version}'[Show version number]'
+        '(-h --help)'{-h,--help}'[Show this help message]'
+
+        # --- Positional Arguments (the final argument is the directory) ---
+        '1:directory to search:_files -/'
+    )
+
+    # _arguments is the core Zsh completion function that parses the options array.
+    _arguments $options
+}

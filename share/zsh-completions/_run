@@ -1,0 +1,72 @@
+#compdef run
+
+# Zsh completion script for the SNIPER 'run' tool
+# Version 1.1 - Explicit declaration for robust long-option completion
+
+_run() {
+    local ret=1
+    
+    # --- Mode Detection & Early Exit ---
+    if [[ " ${words[@]} " =~ " -i " || " ${words[@]} " =~ " --interactive " ]]; then
+        _message "Interactive mode takes no further arguments"
+        return 0
+    fi
+    
+    # --- Option Definitions ---
+    # Define each flag explicitly to ensure both short and long versions are completed.
+    local -a options
+    options=(
+        # --- Flags ---
+        '-t[Measure execution time and resource usage]'
+        '--time[Measure execution time and resource usage]'
+        '-i[Enter interactive REPL-like mode]'
+        '--interactive[Enter interactive REPL-like mode]'
+        '-v[Enable verbose output for compilation/execution steps]'
+        '--verbose[Enable verbose output for compilation/execution steps]'
+        '-w[Watch the source file for changes and re-run automatically]'
+        '--watch[Watch the source file for changes and re-run automatically]'
+        '-j[Run multiple source files concurrently]'
+        '--parallel[Run multiple source files concurrently]'
+        '--no-color[Disable all colored output]'
+        '-h[Show the help message]'
+        '--help[Show the help message]'
+
+        # --- Options with arguments ---
+        '--limit-time=[Set CPU time limit in seconds for the executed program]:seconds'
+        '--limit-mem=[Set memory limit in KB for the executed program]:kilobytes'
+    )
+    
+    # --- Main Completion Logic ---
+    _arguments -C -s -S \
+        $options \
+        '1: :_run_first_arg' \
+        '*: :_run_subsequent_args' && ret=0
+        
+    return $ret
+}
+
+# Helper function for the FIRST positional argument.
+_run_first_arg() {
+    # If in parallel or watch mode, we expect one or more files.
+    if [[ " ${words[@]} " =~ " -w " || " ${words[@]} " =~ " --watch " || " ${words[@]} " =~ " -j " || " ${words[@]} " =~ " --parallel " ]]; then
+        _files
+    else
+        # In standard mode, we also expect a file.
+        _files
+    fi
+}
+
+# Helper function for arguments AFTER the first positional one.
+_run_subsequent_args() {
+    # If in parallel mode, continue completing source files.
+    if [[ " ${words[@]} " =~ " -j " || " ${words[@]} " =~ " --parallel " ]]; then
+        _files
+        return
+    fi
+    
+    # For program arguments, provide default file/directory completion.
+    _default
+}
+
+# Zsh needs this to associate the function with the command
+_run "$@"

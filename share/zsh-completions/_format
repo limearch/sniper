@@ -1,0 +1,18 @@
+#compdef format
+
+# Zsh completion script for the SNIPER 'format' tool
+# Version 3.0 - Safe and explicit style
+
+_format() {
+    # The _arguments function processes options.
+    # We define each flag and its argument handling explicitly.
+    _arguments \
+        '(-h --help)'{-h,--help}'[Show the help screen]' \
+        '--check[Run in check mode without modifying files]' \
+        '(-b --backup)'{-b,--backup}'[Create a .bak file for each modified file]' \
+        '(-v --verbose)'{-v,--verbose}'[Enable verbose output]' \
+        '(-p --parallel)'{-p,--parallel}'[Process files in parallel for better performance]' \
+        '(-s --spaces)'{-s,--spaces}'=[Number of spaces for indentation]:spaces' \
+        '(*-f *--filter)'{'*-f','*--filter'}'=[Format only files with these extensions]:extensions' \
+        '*:path:_files'
+}

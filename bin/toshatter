@@ -1,0 +1,608 @@
+#!/usr/bin/env python3
+# File: bin/hash-extractor
+# Description: Advanced metadata extraction for ZIP, PDF, Office, RAR, and 7z files.
+#              Fixes zero-size entries in ZIPs to correctly extract AES salts, verifiers, and MACs.
+
+import argparse
+import json
+import os
+import struct
+import sys
+from typing import List, Dict, Any, Optional
+from pathlib import Path
+
+# --- SNIPER Environment Setup ---
+# Attempts to load the Sniper framework environment if available.
+try:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_PROJECT_ROOT))
+    from lib.sniper_env import env
+    env.log.name = "hash-extractor"
+except (ImportError, IndexError):
+    # Fallback logger if not running within Sniper
+    import logging
+    logging.basicConfig(format="%(message)s", level=logging.INFO)
+    class Env:
+        log = logging.getLogger("hash-extractor")
+        def __init__(self):
+            self.log.success = self.log.info
+            self.log.error = self.log.error
+            self.log.warning = self.log.warning
+            self.log.critical = self.log.critical
+            self.log.info = self.log.info
+    env = Env()
+
+# --- Rich Library Setup ---
+try:
+    from rich.console import Console
+    from rich.table import Table
+    from rich.text import Text
+    from rich.panel import Panel
+    from rich import box
+    from rich.syntax import Syntax
+except ImportError:
+    print("The 'rich' library is required. Please run: pip install rich")
+    sys.exit(1)
+
+console = Console()
+
+# --- Constants ---
+AES_EID = 0x9901
+AES_STRENGTH = {1: ("AES-128", 8), 2: ("AES-192", 12), 3: ("AES-256", 16)}
+
+# --- Helper Functions ---
+
+def hexd(b: bytes, max_len: int = 128) -> str:
+    """Convert bytes to hex string with optional truncation."""
+    if not b:
+        return ""
+    s = b.hex()
+    if len(s) > max_len * 2:
+        return s[: max_len * 2] + "..."
+    return s
+
+def save_output_lines(lines: List[str], outpath: Optional[str]) -> None:
+    """Save a list of strings to a file."""
+    if outpath:
+        try:
+            with open(outpath, "w", encoding="utf-8") as f:
+                for l in lines:
+                    f.write(l + "\n")
+            env.log.success(f"Hash data saved to [bold underline]{outpath}[/]")
+        except IOError as e:
+            env.log.error(f"Failed to write to file: {e}")
+
+# --- ZIP Parsing Logic ---
+
+def _find_central_dir_entry(data: bytes, target_fname: str) -> Optional[Dict[str, Any]]:
+    """
+    Scans the Central Directory (signature 0x02014b50) to find metadata 
+    that might be missing from the Local File Header.
+    """
+    sig = b"\x50\x4b\x01\x02"
+    pos = 0
+    data_len = len(data)
+    
+    while True:
+        pos = data.find(sig, pos)
+        if pos == -1:
+            return None
+            
+        if pos + 46 > data_len:
+            return None
+            
+        try:
+            # Unpack the static part of the Central Directory header
+            header = data[pos:pos+46]
+            parts = struct.unpack("<IHHHHHIIIHHHHHII", header)
+            
+            # Indices: 8=comp_size, 9=uncomp_size, 10=fname_len, 11=extra_len, 12=comment_len, 16=local_header_offset
+            comp_size = parts[8]
+            uncomp_size = parts[9]
+            fname_len = parts[10]
+            extra_len = parts[11]
+            comment_len = parts[12]
+            local_header_offset = parts[16]
+            
+            # Extract filename
+            fname_start = pos + 46
+            fname_end = fname_start + fname_len
+            if fname_end > data_len:
+                pos += 4
+                continue
+                
+            fname_bytes = data[fname_start:fname_end]
+            try:
+                fname = fname_bytes.decode("utf-8", errors="replace")
+            except:
+                fname = fname_bytes.decode("latin1", errors="replace")
+            
+            if fname == target_fname:
+                return {
+                    "comp_size": comp_size,
+                    "uncomp_size": uncomp_size,
+                    "local_header_offset": local_header_offset
+                }
+                
+            pos = fname_end + extra_len + comment_len
+        except Exception:
+            pos += 4
+            continue
+
+def _parse_local_file_header(data: bytes, sig_pos: int) -> Optional[Dict[str, Any]]:
+    """Parses the Local File Header (PK\x03\x04)."""
+    if sig_pos + 30 > len(data):
+        return None
+    try:
+        (sig, ver, gpbit, method, mod_time, mod_date, crc32, comp_size, uncomp_size, fname_len, extra_len) = struct.unpack(
+            "<IHHHHHIIIHH", data[sig_pos : sig_pos + 30]
+        )
+    except Exception:
+        return None
+
+    fname_start = sig_pos + 30
+    fname_end = fname_start + fname_len
+    if fname_end > len(data):
+        fname = ""
+    else:
+        fname = data[fname_start:fname_end].decode("utf-8", errors="replace")
+
+    extra_start = fname_end
+    extra_end = extra_start + extra_len
+    extra = data[extra_start:extra_end] if extra_end <= len(data) else b""
+
+    data_start = extra_end
+
+    return {
+        "sig_pos": sig_pos,
+        "gpbit": gpbit,
+        "method": method,
+        "crc32": crc32,
+        "comp_size": comp_size,
+        "uncomp_size": uncomp_size,
+        "fname": fname,
+        "extra": extra,
+        "data_start": data_start,
+    }
+
+def parse_zip(path: str) -> Dict[str, Any]:
+    """
+    Main ZIP parsing function. Handles AES encryption detection, 
+    size calculation fixes, and Hashcat-formatted string generation.
+    """
+    info: Dict[str, Any] = {"type": "zip", "path": path, "entries": []}
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+    except Exception as e:
+        info["error"] = f"IO error: {e}"
+        return info
+
+    offset = 0
+    n = 0
+    data_len = len(data)
+
+    while True:
+        # Search for Local File Header
+        sig_pos = data.find(b"\x50\x4b\x03\x04", offset)
+        if sig_pos == -1:
+            break
+        
+        parsed = _parse_local_file_header(data, sig_pos)
+        if not parsed:
+            offset = sig_pos + 4
+            continue
+
+        # Unpack parsed data
+        gpbit = parsed["gpbit"]
+        method = parsed["method"]
+        crc32 = parsed["crc32"]
+        comp_size = parsed["comp_size"]
+        uncomp_size = parsed["uncomp_size"]
+        fname = parsed["fname"]
+        extra = parsed["extra"]
+        data_start = parsed["data_start"]
+        local_sig_pos = parsed["sig_pos"]
+
+        # --- FIX 1: Central Directory Fallback ---
+        # If size is unknown (0), try to find it in the Central Directory
+        if (not comp_size) or comp_size == 0 or comp_size == 0xFFFFFFFF:
+            central = _find_central_dir_entry(data, fname)
+            if central:
+                comp_size = central.get("comp_size", comp_size)
+                uncomp_size = central.get("uncomp_size", uncomp_size)
+
+        # --- FIX 2: Byte Scanning Fallback ---
+        # If Central Directory didn't help, scan for the next signature 
+        # (Data Descriptor or Next Header) to calculate size.
+        if comp_size == 0 and data_start < data_len:
+            # Signatures to look for:
+            # PK\x07\x08 = Data Descriptor
+            # PK\x03\x04 = Next Local File Header
+            # PK\x01\x02 = Central Directory Header
+            
+            dd_pos = data.find(b"\x50\x4b\x07\x08", data_start)
+            next_local = data.find(b"\x50\x4b\x03\x04", data_start)
+            central_start = data.find(b"\x50\x4b\x01\x02", data_start)
+            
+            # Filter valid positions after data_start
+            candidates = [p for p in [dd_pos, next_local, central_start] if p != -1 and p > data_start]
+            
+            if candidates:
+                end_pos = min(candidates)
+                comp_size = end_pos - data_start
+            else:
+                # Last resort: assume data goes to end of file
+                comp_size = data_len - data_start
+
+        # Check encryption bit
+        is_encrypted = (gpbit & 0x1) != 0
+        aes_found = False
+        aes_info: Dict[str, Any] = {}
+
+        # Parse Extra Fields for AES info
+        i = 0
+        while i + 4 <= len(extra):
+            try:
+                eid, elen = struct.unpack("<HH", extra[i : i + 4])
+            except Exception:
+                break
+            field_data = extra[i + 4 : i + 4 + elen]
+            if eid == AES_EID:
+                aes_found = True
+                try:
+                    if len(field_data) >= 7:
+                        ver, vid, strength, actual_comp = struct.unpack("<H2sBH", field_data[:7])
+                        aes_info["vendor_version"] = int(ver)
+                        aes_info["vendor_id"] = vid.decode("latin1", errors="replace")
+                        aes_info["strength_byte"] = int(strength)
+                        aes_info["actual_compression_method"] = int(actual_comp)
+                        aes_info["aes_strength_name"] = AES_STRENGTH.get(int(strength), ("Unknown", None))[0]
+                        aes_info["salt_len"] = AES_STRENGTH.get(int(strength), (None, None))[1]
+                except Exception:
+                    pass
+            i += 4 + elen
+
+        # Extract Hashes (Salt, Verifier, Auth Code)
+        salt_hex = None
+        verifier_hex = None
+        auth_code_hex = None
+        hashcat_string = None
+
+        if aes_found and data_start < data_len:
+            try:
+                # Determine salt length
+                salt_len = aes_info.get("salt_len")
+                if salt_len is None:
+                    # Fallback guess for AES-256
+                    salt_len = 16 
+
+                # Extract Salt and Password Verifier
+                if data_start + salt_len + 2 <= data_len:
+                    salt = data[data_start : data_start + salt_len]
+                    verifier = data[data_start + salt_len : data_start + salt_len + 2]
+                    
+                    salt_hex = salt.hex()
+                    verifier_hex = verifier.hex()
+
+                    # Extract Auth Code (MAC) - The last 10 bytes of the encrypted data
+                    # We can only do this if comp_size was calculated correctly above.
+                    if comp_size and comp_size > (salt_len + 2 + 10):
+                        mac_start = data_start + comp_size - 10
+                        if mac_start + 10 <= data_len:
+                            auth_tail = data[mac_start : mac_start + 10]
+                            auth_code_hex = auth_tail.hex()
+                            
+                            # Generate Hashcat Format: $zip3$0*<strength>*1*<salt_len>*<salt>*<verifier>*<mac_len>*<mac>
+                            # Strength mapping: 1=128bit, 2=192bit, 3=256bit
+                            strength_val = aes_info.get("strength_byte", 3)
+                            
+                            hashcat_string = (
+                                f"$zip3$0*{strength_val}*1*{salt_len}*{salt_hex}*{verifier_hex}*"
+                                f"10*{auth_code_hex}"
+                            )
+
+            except Exception:
+                pass
+
+        # Build Entry
+        entry = {
+            "filename": fname,
+            "is_encrypted": is_encrypted,
+            "method": method,
+            "crc32": f"{crc32:08x}",
+            "comp_size": comp_size,
+            "uncomp_size": uncomp_size,
+            "aes_extra": aes_found,
+            "aes_info": aes_info if aes_info else None,
+            "salt_hex": salt_hex,
+            "password_verifier_hex": verifier_hex,
+            "auth_code_hex": auth_code_hex,
+            "hashcat_format": hashcat_string,
+            "local_header_offset": local_sig_pos
+        }
+
+        info["entries"].append(entry)
+        n += 1
+
+        # Safely advance offset
+        if comp_size and comp_size > 0:
+            offset = data_start + comp_size
+        else:
+            # Just skip header if size still unknown (prevents infinite loop)
+            offset = data_start + 4
+
+    info["found_local_entries"] = n
+    return info
+
+# --- Other Parsers (PDF, Office, RAR, 7z) ---
+
+def parse_pdf(path: str) -> Dict[str, Any]:
+    info = {"type": "pdf", "path": path}
+    try:
+        with open(path, "rb") as f:
+            head = f.read(8192)
+    except Exception as e:
+        info["error"] = str(e)
+        return info
+    if not head.startswith(b"%PDF"):
+        info["is_pdf"] = False
+        return info
+    info["is_pdf"] = True
+    txt = head.decode("latin1", errors="replace")
+    enc_pos = txt.find("/Encrypt")
+    if enc_pos != -1:
+        snippet = txt[max(0, enc_pos - 200) : enc_pos + 400]
+        info["encrypt_snippet"] = snippet
+        info["fields"] = {}
+        for key in ["/Filter", "/V", "/Length", "/R", "/O", "/U", "/P", "/CF"]:
+            p = snippet.find(key)
+            if p != -1:
+                val = snippet[p : p + 50].split()[1] if len(snippet[p:]) > 20 else "Found"
+                info["fields"][key] = val
+    else:
+        info["encrypt_snippet"] = None
+    return info
+
+def parse_office_ooxml(path: str) -> Dict[str, Any]:
+    info = {"type": "office_ooxml", "path": path, "entries": []}
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+    except Exception as e:
+        info["error"] = str(e)
+        return info
+    found = {}
+    for target in [b"EncryptionInfo", b"EncryptedPackage"]:
+        pos = data.find(target)
+        if pos != -1:
+            snippet = data[max(0, pos - 50) : pos + 100]
+            found[target.decode("latin1")] = hexd(snippet, max_len=64)
+            # Try to find associated Zip header
+            idx = data.rfind(b"\x50\x4b\x03\x04", 0, pos)
+            if idx != -1:
+                try:
+                    header = data[idx : idx + 30]
+                    (_, _, gpbit, _, _, _, _, comp_size, _, fname_len, _) = struct.unpack("<IHHHHHIIIHH", header)
+                    fname = data[idx+30 : idx+30+fname_len].decode("utf-8", errors="replace")
+                    info["entries"].append({
+                        "filename": fname,
+                        "is_encrypted": bool(gpbit & 0x1),
+                        "comp_size": comp_size,
+                    })
+                except: pass
+    info["found_targets"] = list(found.keys())
+    return info
+
+def parse_rar(path: str) -> Dict[str, Any]:
+    info = {"type": "rar", "path": path}
+    try:
+        with open(path, "rb") as f:
+            head = f.read(2048)
+    except Exception as e:
+        info["error"] = str(e)
+        return info
+    if head.startswith(b"Rar!\x1A\x07\x00"):
+        info["rar_version"] = "v4"
+    elif head.startswith(b"Rar!\x1A\x07\x01\x00"):
+        info["rar_version"] = "v5"
+    else:
+        info["rar_version"] = "Unknown"
+    txt = head.decode("latin1", errors="replace").lower()
+    info["is_encrypted"] = "encr" in txt or "encrypted" in txt
+    info["header_sample"] = hexd(head[:32])
+    return info
+
+def parse_7z(path: str) -> Dict[str, Any]:
+    info = {"type": "7z", "path": path}
+    try:
+        with open(path, "rb") as f:
+            head = f.read(32)
+    except Exception as e:
+        info["error"] = str(e)
+        return info
+    info["is_7z"] = head.startswith(b"7z\xBC\xAF'\x1C")
+    info["header_sample"] = hexd(head)
+    return info
+
+def detect_and_process(path: str) -> Dict[str, Any]:
+    """Detect file type by signature and dispatch to appropriate parser."""
+    if not os.path.isfile(path):
+        return {"error": "File not found", "path": path}
+    try:
+        with open(path, "rb") as f:
+            head = f.read(16)
+    except Exception as e:
+        return {"error": f"Read error: {e}", "path": path}
+        
+    ftype = "unknown"
+    if head.startswith(b"%PDF"):
+        ftype = "pdf"
+    elif head.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")):
+        # Check if it's Office (OOXML) or standard ZIP
+        with open(path, "rb") as f:
+            big = f.read(65536)
+            if b"EncryptionInfo" in big or b"EncryptedPackage" in big:
+                ftype = "office_ooxml"
+            else:
+                ftype = "zip"
+    elif head.startswith(b"Rar!\x1A\x07"):
+        ftype = "rar"
+    elif head.startswith(b"7z\xBC\xAF'\x1C"):
+        ftype = "7z"
+        
+    if ftype == "zip":
+        return parse_zip(path)
+    elif ftype == "pdf":
+        return parse_pdf(path)
+    elif ftype == "office_ooxml":
+        return parse_office_ooxml(path)
+    elif ftype == "rar":
+        return parse_rar(path)
+    elif ftype == "7z":
+        return parse_7z(path)
+    else:
+        return {"type": "unknown", "path": path, "header": hexd(head)}
+
+# --- Display Logic ---
+
+def display_results(data: Dict[str, Any], json_mode: bool = False):
+    """
+    Renders the results in a beautiful Rich format.
+    """
+    # Header
+    ftype = data.get("type", "Unknown").upper()
+    path = data.get("path", "")
+    
+    console.print(Panel.fit(
+        f"[bold cyan]File:[/bold cyan] {path}\n[bold cyan]Detected Type:[/bold cyan] [yellow]{ftype}[/yellow]",
+        title="[bold magenta]SNIPER Hash Extractor[/bold magenta]",
+        border_style="blue"
+    ))
+
+    if "error" in data:
+        console.print(f"[bold red]Error:[/bold red] {data['error']}")
+        return
+
+    # Process ZIP Entries
+    if data.get("entries"):
+        table = Table(title="Encrypted Entries Found", box=box.ROUNDED, show_lines=True)
+        table.add_column("Filename", style="green")
+        table.add_column("Encryption", style="cyan")
+        table.add_column("Salt", style="magenta")
+        table.add_column("Verifier", style="yellow")
+        table.add_column("Auth Code (MAC)", style="red")
+
+        hashes_to_print = []
+
+        for entry in data["entries"]:
+            fname = entry.get("filename", "Unknown")
+            aes_info = entry.get("aes_info") or {}
+            algo = aes_info.get("aes_strength_name", "Standard ZipCrypto")
+            
+            salt = entry.get("salt_hex") or "-"
+            verifier = entry.get("password_verifier_hex") or "-"
+            auth = entry.get("auth_code_hex") or "[dim]Not Found[/dim]"
+            
+            if entry.get("hashcat_format"):
+                hashes_to_print.append((fname, entry["hashcat_format"]))
+
+            # Truncate long strings for table
+            salt_display = (salt[:12] + "...") if len(salt) > 12 else salt
+            
+            table.add_row(fname, algo, salt_display, verifier, auth)
+
+        console.print(table)
+
+        # Display Copy-Pasteable Hashes
+        if hashes_to_print:
+            console.print("\n[bold]💰 Hashcat / JtR Formatted Hashes:[/bold]")
+            for name, h_str in hashes_to_print:
+                console.print(Panel(
+                    Syntax(h_str, "text", word_wrap=True),
+                    title=f"[bold green]{name}[/bold green]",
+                    expand=False,
+                    border_style="green"
+                ))
+    
+    # Process PDF Fields
+    elif data.get("type") == "pdf":
+        if data.get("fields"):
+            table = Table(title="PDF Encryption Details", box=box.SIMPLE)
+            table.add_column("Field", style="cyan")
+            table.add_column("Value", style="yellow")
+            for k, v in data["fields"].items():
+                table.add_row(k, str(v))
+            console.print(table)
+        else:
+            console.print("[yellow]No specific encryption dictionary fields found.[/yellow]")
+
+    # Fallback for others
+    else:
+        # Just dump the interesting keys nicely
+        ignore = ["type", "path", "entries", "header_sample"]
+        remain = {k: v for k, v in data.items() if k not in ignore}
+        console.print(remain)
+
+# --- Main Entry Point ---
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="hash-extractor", 
+        description="Extract encryption metadata (Salts, MACs) from files.", 
+        add_help=False
+    )
+    io_group = parser.add_argument_group("📁 Input/Output")
+    io_group.add_argument("input", nargs="?", help="Target file path.")
+    io_group.add_argument("-o", "--output", metavar="FILE", help="Save extracted raw hashes to file.")
+    io_group.add_argument("-j", "--json", metavar="FILE", help="Save full analysis to JSON file.")
+    
+    info_group = parser.add_argument_group("ℹ️ Info")
+    info_group.add_argument("-h", "--help", action="store_true", help="Show this help message.")
+    
+    args = parser.parse_args()
+
+    if args.help or not args.input:
+        console.print(f"[bold magenta]SNIPER Hash Extractor[/bold magenta] [dim]v1.3 (Fixed)[/]")
+        parser.print_help()
+        return
+
+    env.log.info("Starting analysis...")
+    result = detect_and_process(args.input)
+
+    # Display to console
+    if not args.json:
+        display_results(result)
+    else:
+        # If user wants JSON only, print minimal JSON to stdout or save to file
+        console.print(json.dumps(result, indent=2, ensure_ascii=False))
+
+    # Save logic
+    if args.output:
+        lines = []
+        if result.get("entries"):
+            for e in result["entries"]:
+                if e.get("hashcat_format"):
+                    lines.append(e["hashcat_format"])
+                else:
+                    # Fallback format
+                    lines.append(f"{e.get('filename')} salt={e.get('salt_hex')} auth={e.get('auth_code_hex')}")
+        elif result.get("fields"):
+            lines.append(str(result["fields"]))
+            
+        save_output_lines(lines, args.output)
+
+    if args.json:
+        try:
+            with open(args.json, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=4, ensure_ascii=False)
+            env.log.success(f"JSON report saved to [bold]{args.json}[/]")
+        except Exception as e:
+            env.log.error(f"Failed to save JSON: {e}")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print()
+        env.log.warning("Operation cancelled by user.")

@@ -1,0 +1,42 @@
+#compdef fastfind
+_fastfind() {
+    local -a options
+    # 'flag[description]'
+    # 'flag:argument_description:action'
+    
+    options=(
+        '-h[Show help screen]'
+        '--help[Show help screen]'
+        '-i[Perform case-insensitive search]'
+        '--ignore-case[Perform case-insensitive search]'
+        '-l[Use long listing format]'
+        '--long-listing[Use long listing format]'
+        '-s[Show hidden files and directories]'
+        '--show-hidden[Show hidden files and directories]'
+        '--no-hidden[Do not search hidden files/directories]'
+        '--ignore-vcs[Ignore version control directories like .git]'
+        '--delete[Delete found files]'
+        '--interactive[Prompt before each deletion]'
+        
+        '(-p --pattern)'{-p,--pattern}'[Regex pattern to search for]:pattern:_files'
+        '(-d --directory)'{-d,--directory}'[Directory to start search from]:directory:_files -/'
+        '(-e --ext)'{-e,--ext}'[Filter by file extension (e.g., py, txt)]:extension'
+        '(-o --output)'{-o,--output}'[Write output to a file]:output_file:_files'
+        '(-m --max-depth)'{-m,--max-depth}'[Maximum search depth]:depth'
+        '--content[Search for regex pattern inside file content]:content_pattern'
+        '--size[Filter by size (e.g., +10K, -1M, 500)]:size'
+        '--mtime[Filter by modification time (e.g., -7d)]:mtime'
+        '--owner[Filter by file owner]:owner:_users'
+        '--perms[Filter by file permissions (e.g., 644)]:permissions'
+        '--exec[Execute a command on each found file (use {} as placeholder)]:command'
+        '--threads[Number of threads to use]:thread_count'
+
+
+        '(-t --type)'{-t,--type}'[Filter by type (f: file, d: dir, l: link)]:type:(f d l)'
+        '--format[Output format]:format:(text json csv)'
+        
+        '*:path:_files -/'
+    )
+    
+    _arguments $options
+}

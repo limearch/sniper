@@ -1,11 +1,8 @@
 /**
  * @file main.cpp
- * @brief The high-performance C++ core scanner for secret-hound.
- *
- * This executable is designed to be a silent worker. It accepts a path
- * as an argument, scans it for secrets based on rules, and prints any
- * findings as raw, line-delimited JSON to stdout. It is not intended
- * to be called directly by the user, but by a wrapper script.
+ * @brief The C++ core scanner for secret-hound (CORRECTED).
+ * - Fixes missing <sstream> header.
+ * - Moves the directory_walk_callback function into this file where it is used.
  */
 
 #include "hound_core/scanner.hpp"
@@ -18,90 +15,148 @@
 #include <libgen.h>
 #include <climits>
 #include <sys/stat.h>
+#include <algorithm>
+#include <sstream> // <<< FIX 1: Added missing header for stringstream
 
 extern "C" {
     #include "sniper_c_utils.h"
 }
 
-// Prototypes
-std::string find_tool_root_path(const char* argv0);
+// Data structure to pass the scanner instance to the callback.
+struct WalkData {
+    Scanner* scanner_instance;
+};
+
+// <<< FIX 2: Moved the callback function from scanner.cpp to main.cpp >>>
+// This function is called by `sniper_directory_walk` for every file system entry.
+int directory_walk_callback(const WalkInfo* info, void* user_data) {
+    if (!S_ISREG(info->stat_info.st_mode)) {
+        return 0; // Continue walking, skip non-regular files.
+    }
+    
+    WalkData* data = (WalkData*)user_data;
+    Scanner* scanner = data->scanner_instance;
+    
+    // Create task arguments on the heap for the thread pool.
+    ScanTaskArgs* task_args = new ScanTaskArgs{
+        scanner,
+        std::string(info->full_path)
+    };
+
+    // Add the file scanning task to the pool.
+    scanner->add_scan_task(task_args);
+    
+    return 0; // Signal to continue the walk.
+}
+
+// Helper to split a C-style string by a delimiter
+std::vector<std::string> split_string(const char* str, char delimiter) {
+    std::vector<std::string> result;
+    if (!str) return result;
+    std::stringstream ss(str);
+    std::string item;
+    while (std::getline(ss, item, delimiter)) {
+        result.push_back(item);
+    }
+    return result;
+}
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <path_to_scan> [--rules /path/to/rules.json]\n", argv[0]);
+    // --- Argument Parsing (remains the same) ---
+    const char* target_path = NULL;
+    const char* rules_file_path = NULL;
+    bool scan_stdin = false;
+    const char* min_confidence_str = "low";
+    const char* include_ids_str = NULL;
+    bool no_hidden = false;
+
+    SniperOption options[] = {
+        {0,   "rules",      OPT_STRING, &rules_file_path,    "Path to a custom JSON rules file."},
+        {0,   "scan-stdin", OPT_FLAG,   &scan_stdin,         "Scan content piped from standard input."},
+        {'c', "confidence", OPT_STRING, &min_confidence_str, "Minimum confidence level (low, medium, high)."},
+        {0,   "include",    OPT_STRING, &include_ids_str,    "Comma-separated rule IDs to include."},
+        {0,   "no-hidden",  OPT_FLAG,   &no_hidden,          "Exclude hidden files and directories."},
+        {0,   NULL,         (OptionType)0, NULL,             NULL}
+    };
+    
+    int first_arg_idx = sniper_parse_options(argc, argv, options, "hound-core");
+
+    if (!scan_stdin && first_arg_idx < argc) {
+        target_path = argv[first_arg_idx];
+    }
+    
+    if (!target_path && !scan_stdin) {
+        sniper_log(LOG_ERROR, "hound-core", "No target path specified.");
+        sniper_show_tool_help("hound-core");
         return 1;
     }
 
-    const char* target_path = argv[1];
-    const char* rules_file_path = NULL;
-
-    // Manual, simple argument parsing for this internal tool.
-    for (int i = 2; i < argc; ++i) {
-        if (strcmp(argv[i], "--rules") == 0 && i + 1 < argc) {
-            rules_file_path = argv[++i];
-        }
-    }
-
     try {
+        // --- Rule Loading and Filtering (remains the same) ---
         std::string final_rules_path;
         if (rules_file_path) {
             final_rules_path = rules_file_path;
         } else {
-            std::string tool_root = find_tool_root_path(argv[0]);
-            if (!tool_root.empty()) {
-                final_rules_path = tool_root + "/rules/default.json";
+            char root_path[PATH_MAX];
+            if (sniper_get_root_path(root_path, sizeof(root_path)) == 0) {
+                final_rules_path = std::string(root_path) + "/tools/secret-hound/rules/default.json";
             } else {
-                sniper_log(LOG_ERROR, "hound-core", "Cannot find default rules file without tool root path.");
+                sniper_log(LOG_ERROR, "hound-core", "Cannot find project root to load default rules.");
                 return 1;
             }
         }
         
-        auto rules = RuleParser::parse_rules_from_file(final_rules_path);
-        int num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+        auto all_rules = RuleParser::parse_rules_from_file(final_rules_path);
+        std::vector<DetectionRule> filtered_rules;
+
+        int min_confidence_level = (strcmp(min_confidence_str, "high") == 0) ? 2 :
+                                   (strcmp(min_confidence_str, "medium") == 0) ? 1 : 0;
         
-        Scanner scanner(rules, num_threads);
-        
-        struct stat s;
-        if (stat(target_path, &s) == 0) {
-            if (S_ISDIR(s.st_mode)) {
-                scanner.scan_directory(target_path);
-            } else if (S_ISREG(s.st_mode)) {
-                ScanTaskArgs* task_args = new ScanTaskArgs{&scanner, std::string(target_path)};
-                scanner.add_scan_task(task_args);
+        std::vector<std::string> include_ids = split_string(include_ids_str, ',');
+
+        for (const auto& rule : all_rules) {
+            bool confidence_ok = rule.confidence_level >= min_confidence_level;
+            bool id_ok = include_ids.empty() || (std::find(include_ids.begin(), include_ids.end(), rule.id) != include_ids.end());
+            
+            if (confidence_ok && id_ok) {
+                filtered_rules.push_back(rule);
             }
-            scanner.wait_for_completion();
+        }
+        
+        if (filtered_rules.empty() && !all_rules.empty()) {
+            sniper_log(LOG_WARN, "hound-core", "No rules match the specified filters. Scan will find nothing.");
+        }
+        
+        // --- Scanner Initialization and Dispatch (remains the same, but with corrected walk logic) ---
+        int num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+        Scanner scanner(filtered_rules, num_threads);
+        
+        if (scan_stdin) {
+            std::string content((std::istreambuf_iterator<char>(std::cin)), std::istreambuf_iterator<char>());
+            scanner.scan_content(content, "stdin");
         } else {
-            sniper_log(LOG_ERROR, "hound-core", "Target path not found: %s", target_path);
-            return 1;
+            WalkOptions walk_opts = {.follow_symlinks = false, .skip_hidden = no_hidden, .max_depth = -1};
+            
+            struct stat s;
+            if (stat(target_path, &s) == 0) {
+                if (S_ISDIR(s.st_mode)) {
+                    // --- FIX 2 (continued): Pass the correct user_data struct ---
+                    WalkData walk_data = {&scanner};
+                    sniper_directory_walk(target_path, &walk_opts, directory_walk_callback, &walk_data);
+                } else if (S_ISREG(s.st_mode)) {
+                    ScanTaskArgs* task_args = new ScanTaskArgs{&scanner, std::string(target_path)};
+                    scanner.add_scan_task(task_args);
+                }
+                scanner.wait_for_completion();
+            } else {
+                sniper_log(LOG_ERROR, "hound-core", "Target path not found: %s", target_path);
+                return 1;
+            }
         }
     } catch (const std::exception& e) {
-        sniper_log(LOG_ERROR, "hound-core", "An exception occurred: %s", e.what());
+        sniper_log(LOG_ERROR, "hound-core", "A critical exception occurred: %s", e.what());
         return 1;
     }
 
     return 0;
-}
-
-std::string find_tool_root_path(const char* argv0) {
-    char real_path_buf[PATH_MAX];
-    ssize_t len = readlink("/proc/self/exe", real_path_buf, sizeof(real_path_buf) - 1);
-    if (len != -1) {
-        real_path_buf[len] = '\0';
-    } else if (realpath(argv0, real_path_buf) == nullptr) {
-        return "";
-    }
-    char* path_copy1 = strdup(real_path_buf);
-    if (!path_copy1) return "";
-    char* exec_dir = dirname(path_copy1);
-    
-    char* path_copy2 = strdup(exec_dir);
-    if (!path_copy2) { free(path_copy1); return ""; }
-    char* tool_root_cstr = dirname(path_copy2);
-    
-    std::string tool_root_path(tool_root_cstr);
-    
-    free(path_copy1);
-    free(path_copy2);
-    
-    return tool_root_path;
 }

@@ -154,5 +154,11 @@ secrets.json
 docker-compose.override.yml
 *.log
 
+# Testes
+test/
+Test/
+tests/
+
+
 # Recommended: keep an example config file in repo
 # e.g. "config.example.json" with placeholder values (DO NOT ignore that)

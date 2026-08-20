@@ -4,85 +4,95 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 
-#define BIT 1024
-const char *SIZES[] = {"B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
+#define BLOCK_SIZE 1024
+#define MAX_PATH_LEN 4096
 
-// حساب حجم الملف
-unsigned long long get_file_size(const char *path) {
-    struct stat st;
-    if (stat(path, &st) == 0) {
-        return st.st_size;
-    }
-    return 0;
-}
+/* Color definitions */
+#define C_RESET   "\033[0m"
+#define C_RED     "\033[1;31m"
+#define C_GREEN   "\033[1;32m"
+#define C_YELLOW  "\033[1;33m"
+#define C_CYAN    "\033[1;36m"
+#define C_BOLD    "\033[1m"
 
-// حساب حجم المجلد
-unsigned long long get_dir_size(const char *path) {
-    unsigned long long total_size = 0;
-    struct dirent *entry;
-    char fullpath[4096];
-    DIR *dir = opendir(path);
-
-    if (!dir) return 0;
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-
-        snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
-
-        if (entry->d_type == DT_DIR) {
-            total_size += get_dir_size(fullpath);
-        } else {
-            total_size += get_file_size(fullpath);
-        }
-    }
-
-    closedir(dir);
-    return total_size;
-}
-
-// تحويل الحجم إلى الوحدات المناسبة
-void format_size(unsigned long long size, char *result) {
-    int i = 0;
-    double formatted_size = (double)size;
-
-    // نستمر في القسمة حتى نجد الوحدة المناسبة
-    while (formatted_size >= BIT && i < (sizeof(SIZES) / sizeof(SIZES[0])) - 1) {
-        formatted_size /= BIT;
-        i++;
-    }
-
-    sprintf(result, "%.2f \033[1;34m%s\033[0m", formatted_size, SIZES[i]);
-}
+/* Function prototypes */
+unsigned long long calculate_path_size(const char *path);
+void format_human_readable(unsigned long long size, char *out_buf, size_t buf_size);
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        printf("Usage: %s <file_or_directory>\n", argv[0]);
-        return 1;
+        fprintf(stderr, C_YELLOW "Usage: %s <path>\n" C_RESET, argv[0]);
+        return EXIT_FAILURE;
     }
 
-    char formatted_size[20];
-    unsigned long long size = 0;
+    const char *target_path = argv[1];
+    unsigned long long total_bytes = calculate_path_size(target_path);
 
-    // حساب الحجم حسب نوع المسار (ملف أو مجلد)
-    if (access(argv[1], F_OK) != -1) {
-        struct stat st;
-        stat(argv[1], &st);
-        if (S_ISDIR(st.st_mode)) {
-            size = get_dir_size(argv[1]);
-        } else {
-            size = get_file_size(argv[1]);
+    char human_size[64];
+    format_human_readable(total_bytes, human_size, sizeof(human_size));
+
+    /* Direct one-line colored output */
+    printf(C_CYAN "%s" C_RESET " => " C_GREEN C_BOLD "%s" C_RESET C_YELLOW " (%llu bytes)\n" C_RESET, 
+           target_path, human_size, total_bytes);
+
+    return EXIT_SUCCESS;
+}
+
+/**
+ * Calculates total size recursively skipping symlinks
+ */
+unsigned long long calculate_path_size(const char *path) {
+    struct stat st;
+
+    if (lstat(path, &st) == -1) {
+        fprintf(stderr, C_RED "[!] Error accessing %s: %s\n" C_RESET, path, strerror(errno));
+        return 0;
+    }
+
+    if (S_ISLNK(st.st_mode)) return 0;
+    if (S_ISREG(st.st_mode)) return st.st_size;
+
+    if (S_ISDIR(st.st_mode)) {
+        DIR *dir = opendir(path);
+        if (!dir) {
+            fprintf(stderr, C_RED "[!] Permission denied: %s\n" C_RESET, path);
+            return 0;
         }
 
-        // عرض الحجم بوحدة مناسبة
-        format_size(size, formatted_size);
-        printf("Size of\033[1;33m %s: \033[1;35m%s\n", argv[1], formatted_size);
-    } else {
-        printf("No such file or directory: '%s'\n", argv[1]);
+        unsigned long long dir_total = 0;
+        struct dirent *entry;
+        char sub_path[MAX_PATH_LEN];
+
+        while ((entry = readdir(dir)) != NULL) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+                continue;
+            }
+
+            snprintf(sub_path, sizeof(sub_path), "%s/%s", path, entry->d_name);
+            dir_total += calculate_path_size(sub_path);
+        }
+
+        closedir(dir);
+        return dir_total + st.st_size;
     }
 
     return 0;
+}
+
+/**
+ * Converts size to human readable units
+ */
+void format_human_readable(unsigned long long size, char *out_buf, size_t buf_size) {
+    const char *units[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB"};
+    int i = 0;
+    double friendly_size = (double)size;
+
+    while (friendly_size >= BLOCK_SIZE && i < 5) {
+        friendly_size /= BLOCK_SIZE;
+        i++;
+    }
+
+    snprintf(out_buf, buf_size, "%.2f %s", friendly_size, units[i]);
 }

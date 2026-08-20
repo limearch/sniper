@@ -1,0 +1,79 @@
+#compdef compress
+
+# Zsh completion script for the SNIPER 'compress' tool
+# Version 2.1 - Perfectly aligned with the tool's help screen
+
+_compress() {
+    # This function determines the current mode (ZIP or TAR)
+    # and offers the appropriate completions.
+    
+    local in_tar_mode=0
+
+    # --- Logic to determine mode ---
+
+    # 1. Check if a TAR-specific flag is used.
+    # The "~" operator is a Zsh pattern matching feature.
+    if [[ " ${words[@]} " =~ " -C " || " ${words[@]} " =~ " --compression " ]]; then
+        in_tar_mode=1
+    fi
+
+    # 2. If TAR mode is not forced by a flag, check the output filename.
+    if (( ! in_tar_mode )); then
+        # Loop through the words array to find the value given to --output or -o.
+        for i in {1..$#words}; do
+            # Check for '-o filename' or '--output filename' format
+            if [[ "${words[i]}" == "-o" || "${words[i]}" == "--output" ]]; then
+                if [[ -n "${words[i+1]}" && "${words[i+1]}" == *".tar"* ]]; then
+                    in_tar_mode=1
+                    break
+                fi
+            # Check for '--output=filename' format
+            elif [[ "${words[i]}" == "--output="* && "${words[i]}" == *".tar"* ]]; then
+                 in_tar_mode=1
+                 break
+            fi
+        done
+    fi
+
+    # --- Define options based on the determined mode ---
+
+    local -a common_options
+    local -a zip_only_options
+    local -a tar_options
+    
+    # These options are always available.
+    common_options=(
+        '(-d --directory):Directory to compress:_files -/'
+        '(-o --output):Output archive file name:_files'
+        '(-v --verbose)-v[Enable verbose output]'
+        '(-h --help)-h[Show this help message and exit]'
+    )
+    
+    # These options are only available in ZIP mode.
+    zip_only_options=(
+        '(-l --level):Compression level (0-9):((0\:none 1 2 3 4 5\:default 6 7 8 9\:max))'
+        '(-f --filter):Only include files with this extension (e.g., .txt):'
+        '(-e --exclude):Exclude files with this extension (e.g., .log):'
+        '(-H --skip-hidden)-H[Skip hidden files and folders]'
+        # Grouping multiple flags for the same option
+        '(-t -c --test)-c[Test ZIP archive integrity after creation]'
+        '(-t -c --test)-t[Test ZIP archive integrity after creation]'
+        '(-t -c --test)--test[Test ZIP archive integrity after creation]'
+    )
+
+    # This option is available in both modes, but its presence switches to TAR mode.
+    tar_options=(
+        '(-C --compression):Explicitly set TAR compression type:(gzip bzip2 xz)'
+    )
+    
+    # --- Offer completions ---
+
+    if (( in_tar_mode )); then
+        # In TAR Mode: We only show common options and the TAR type option.
+        # We don't show ZIP options like --level or --test.
+        _arguments -s -S $common_options $tar_options
+    else
+        # In ZIP Mode: We show everything, allowing the user to switch to TAR mode.
+        _arguments -s -S $common_options $zip_only_options $tar_options
+    fi
+}

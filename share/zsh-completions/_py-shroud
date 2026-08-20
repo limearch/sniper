@@ -1,0 +1,37 @@
+#compdef py-shroud
+
+# Zsh completion script for the SNIPER 'py-shroud' tool
+# Version 1.0
+
+_py-shroud() {
+    local -a options
+
+    # Define all options for the _arguments function.
+    # We use explicit definitions for both short and long flags for robustness.
+    options=(
+        # --- Flags ---
+        '-h[Show the help screen]'
+        '--help[Show the help screen]'
+
+        # --- Options with Arguments ---
+        
+        # -o / --output
+        '-o[Path for the shrouded output file]:output_file:_files'
+        '--output=[Path for the shrouded output file]:output_file:_files'
+
+        # -b / --banner
+        '-b[Path to a text file to prepend as a header]:banner_file:_files'
+        '--banner=[Path to a text file to prepend as a header]:banner_file:_files'
+        
+        # -l / --level (with specific choices and descriptions)
+        '-l[Set obfuscation level]:level:(1\:Basic-Bytecode 2\:Standard-String_Encryption 3\:Maximum-Name_Mangling)'
+        '--level=[Set obfuscation level]:level:(1\:Basic-Bytecode 2\:Standard-String_Encryption 3\:Maximum-Name_Mangling)'
+
+        # --- Positional Arguments ---
+        # The first positional argument is the input file. We filter for .py files.
+        '1:Input Python file:_files -g "*.py"'
+    )
+
+    # Execute the completion function
+    _arguments -s -S $options
+}

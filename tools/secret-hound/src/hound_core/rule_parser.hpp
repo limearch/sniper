@@ -1,6 +1,5 @@
 // File: tools/secret-hound/src/hound_core/rule_parser.hpp
-// Description: Defines the structures for holding parsed secret-detection rules
-// and the interface for parsing them from a JSON file.
+// Description: Defines structures for rules and the interface for parsing them. (UPDATED)
 
 #ifndef RULE_PARSER_HPP
 #define RULE_PARSER_HPP
@@ -11,22 +10,18 @@
 
 // Represents a single rule for detecting a secret.
 struct DetectionRule {
-    std::string id;              // Unique identifier, e.g., "AWS_KEY"
-    std::string description;     // Human-readable description
-    std::string regex_str;       // The regular expression pattern
-    std::regex compiled_regex;   // The compiled regex object for performance
-    double min_entropy;          // Minimum Shannon entropy required to match (0 if not used)
+    std::string id;
+    std::string description;
+    std::string regex_str;
+    std::regex compiled_regex;
+    double min_entropy = 0.0;
+    std::string confidence = "low"; // Confidence as a string (low, medium, high)
+    int confidence_level = 0;      // Numeric confidence (0=low, 1=medium, 2=high)
 };
 
 // The main class responsible for loading and managing rules.
 class RuleParser {
 public:
-    /**
-     * @brief Parses a JSON file containing an array of detection rules.
-     * @param filepath The path to the JSON rule file.
-     * @return A vector of DetectionRule structs.
-     * @throws std::runtime_error if the file cannot be read or parsed.
-     */
     static std::vector<DetectionRule> parse_rules_from_file(const std::string& filepath);
 };
 

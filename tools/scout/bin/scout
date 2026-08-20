@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Wrapper script for Scout
+
+# Determine the directory where this script resides
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOL_DIR="$(dirname "$BIN_DIR")"
+PROJECT_ROOT="$(dirname "$(dirname "$TOOL_DIR")")"
+
+# Add project root to PYTHONPATH so imports work correctly
+export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+
+# Run the Python module with unbuffered output (-u)
+exec python3 -u "$TOOL_DIR/src/main.py" "$@"
