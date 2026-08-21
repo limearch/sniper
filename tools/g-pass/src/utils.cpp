@@ -6,6 +6,7 @@
 #include "utils.hpp"
 #include <iostream>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <array>

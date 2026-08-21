@@ -9,6 +9,7 @@
 #include "hound_core/rule_parser.hpp"
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <vector>
 #include <stdexcept>
 #include <unistd.h>

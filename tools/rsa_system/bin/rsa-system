@@ -1,0 +1,30 @@
+#!/usr/bin/python3
+"""
+RSA System Executable Launcher
+Entry point script for launching the RSA Cryptographic System.
+"""
+
+import sys
+from pathlib import Path
+
+
+def setup_environment() -> None:
+    """Add the project root directory to sys.path for module resolution."""
+    project_root = Path(__file__).resolve().parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+
+def run() -> None:
+    """Import and execute the main tool entry point."""
+    setup_environment()
+    try:
+        from rsa_system import main
+        main()
+    except ImportError as exc:
+        sys.stderr.write(f"Error: Failed to import core module ({exc})\n")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    run()

@@ -1,0 +1,90 @@
+#compdef rsa-system rsa_system.py
+
+# Zsh completion script for the RSA Cryptographic System tool
+
+_rsa_system() {
+    local context state line
+    typeset -A opt_args
+
+    # Global options available across commands
+    local -a global_options
+    global_options=(
+        '--vault=[Custom key vault directory]:directory:_files -/'
+        '--version[Show tool version information]'
+        '(-h --help)'{-h,--help}'[Show help message]'
+    )
+
+    # Subcommands
+    local -a subcommands
+    subcommands=(
+        'menu:Launch interactive TUI terminal menu'
+        'genkeys:Generate a new RSA key pair'
+        'keyinfo:Display key metadata and SHA-256 fingerprint'
+        'backup:Create a timestamped backup copy of key vault'
+        'encrypt:RSA-OAEP encrypt text or small file'
+        'decrypt:RSA-OAEP decrypt hex ciphertext or file'
+        'encrypt-file:Hybrid-encrypt any file size (AES-256-GCM + RSA)'
+        'decrypt-file:Decrypt a hybrid-encrypted .enc file'
+        'sign:Sign data with RSA-PSS + SHA-256'
+        'verify:Verify an RSA-PSS digital signature'
+    )
+
+    _arguments -C \
+        $global_options \
+        '1:subcommand:->command' \
+        '*::options:->options'
+
+    case $state in
+        command)
+            _describe -t subcommands 'rsa-system command' subcommands
+            ;;
+        options)
+            case $line[1] in
+                genkeys)
+                    _arguments \
+                        '--size=[Key size in bits]:key_size:(2048 3072 4096)' \
+                        '--password[Protect private key with passphrase]' \
+                        '--overwrite[Overwrite any existing key pair]'
+                    ;;
+                backup)
+                    _arguments \
+                        '--dest=[Backup destination directory]:directory:_files -/'
+                    ;;
+                encrypt)
+                    _arguments \
+                        '--out=[Save hex ciphertext to file]:output_file:_files' \
+                        '1:data or file:_files'
+                    ;;
+                decrypt)
+                    _arguments \
+                        '--password[Prompt for private key passphrase]' \
+                        '1:hex string or file:_files'
+                    ;;
+                encrypt-file)
+                    _arguments \
+                        '--out=[Output .enc file path]:output_file:_files' \
+                        '1:source file:_files'
+                    ;;
+                decrypt-file)
+                    _arguments \
+                        '--out=[Output file path]:output_file:_files' \
+                        '--password[Prompt for private key passphrase]' \
+                        '1:source .enc file:_files -g "*.enc"'
+                    ;;
+                sign)
+                    _arguments \
+                        '--out=[Save hex signature to file]:output_file:_files' \
+                        '--password[Prompt for private key passphrase]' \
+                        '1:data or file:_files'
+                    ;;
+                verify)
+                    _arguments \
+                        '1:original data or file:_files' \
+                        '2:signature hex or file:_files'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_rsa_system "$@"

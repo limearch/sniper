@@ -50,9 +50,9 @@
                 "jq"
             ]
         },
-        "debian": {
-            "update_cmd": "sudo apt-get update",
-            "install_cmd": "sudo apt-get install -y",
+        "linux": {
+            "update_cmd": "apt-get update",
+            "install_cmd": "apt-get install -y",
             "packages": [
                 "clang",
                 "make",
@@ -67,10 +67,7 @@
                 "libffi-dev",
                 "rustc",
                 "nodejs",
-                "golang",
-                "openjdk-17-jdk",
-                "ruby-full",
-                "dart"
+                "golang"
             ]
         }
     }

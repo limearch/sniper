@@ -1,0 +1,116 @@
+{
+  "layout": [
+    {
+      "component": "Panel",
+      "style": "cyan",
+      "content": [{ "component": "Text", "text": "RSA Cryptographic System v3.0.0 - Secure Key Management & Data Protection[span_0](start_span)[span_0](end_span)", "style": "bold cyan", "justify": "center" }]
+    },
+    { "component": "Text", "text": "[bold]Usage:[/] [yellow]python rsa_system.py[/] [cyan]<command>[/] [green][OPTIONS][/][span_1](start_span)[span_1](end_span)", "justify": "center" },
+    {
+      "component": "Panel",
+      "title": "[blue]About rsa_system[/]",
+      "style": "blue",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "A comprehensive cryptographic system in Python providing secure RSA key management,[span_2](start_span)[span_2](end_span)",
+          "RSA-OAEP encryption for small payloads, hybrid AES-256-GCM + RSA key wrapping for files,[span_3](start_span)[span_3](end_span)",
+          "and RSA-PSS digital signatures using SHA-256[span_4](start_span)[span_4](end_span)."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[cyan]Key Management Commands[/]",
+      "style": "cyan",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]genkeys[/]                   Generate a new RSA key pair (--size 2048|3072|4096, --password, --overwrite)[span_5](start_span)[span_5](end_span).",
+          "  [green]keyinfo[/]                   Display key metadata, public parameters, and SHA-256 fingerprint[span_6](start_span)[span_6](end_span).",
+          "  [green]backup[/]                    Create a timestamped backup copy of the key vault (--dest <DIR>)[span_7](start_span)[span_7](end_span).",
+          "  [green]menu[/]                      Launch interactive TUI terminal menu[span_8](start_span)[span_8](end_span)."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]Encryption & Decryption[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[bold]RSA-OAEP (Small Payloads):[/b]",
+          "  [green]encrypt <data>[/]             Encrypt text or small file using RSA-OAEP (--out <file>)[span_9](start_span)[span_9](end_span).",
+          "  [green]decrypt <data>[/]             Decrypt hex ciphertext or file (--password)[span_10](start_span)[span_10](end_span).",
+          "",
+          "[bold]Hybrid Mode (AES-256-GCM + RSA-OAEP, Unlimited Size):[/b]",
+          "  [green]encrypt-file <source>[/]     Hybrid-encrypt any file size to .enc bundle (--out <file>)[span_11](start_span)[span_11](end_span).",
+          "  [green]decrypt-file <source>[/]     Decrypt a hybrid-encrypted .enc bundle (--out <file>, --password)[span_12](start_span)[span_12](end_span)."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[magenta]Digital Signatures[/]",
+      "style": "magenta",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]sign <data>[/]                Sign text or file using RSA-PSS + SHA-256 (--out <file>, --password)[span_13](start_span)[span_13](end_span).",
+          "  [green]verify <data> <sig>[/]        Verify an RSA-PSS signature against original data[span_14](start_span)[span_14](end_span)."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[green]Global Options[/]",
+      "style": "green",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  [green]--vault <DIR>[/]            Specify custom key vault directory (Default: 'vault')[span_15](start_span)[span_15](end_span).",
+          "  [green]--version[/]                Show tool version information (v3.0.0)[span_16](start_span)[span_16](end_span).",
+          "  [green]-h, --help[/]                Show standard help message[span_17](start_span)[span_17](end_span)."
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[yellow]💡 Examples[/]",
+      "style": "yellow",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "[#] Generate 4096-bit passphrase-protected RSA keys:",
+          "  [yellow]python rsa_system.py[/] [green]genkeys --size 4096 --password[/][span_18](start_span)[span_18](end_span)",
+          "",
+          "[#] Hybrid-encrypt a large file (AES-256-GCM + RSA-OAEP):",
+          "  [yellow]python rsa_system.py[/] [green]encrypt-file report.pdf --out report.enc[/][span_19](start_span)[span_19](end_span)",
+          "",
+          "[#] Decrypt a hybrid-encrypted file:",
+          "  [yellow]python rsa_system.py[/] [green]decrypt-file report.enc --out report.pdf --password[/][span_20](start_span)[span_20](end_span)",
+          "",
+          "[#] Sign a document with RSA-PSS and save hex signature:",
+          "  [yellow]python rsa_system.py[/] [green]sign document.txt --out document.sig --password[/][span_21](start_span)[span_21](end_span)",
+          "",
+          "[#] Verify signature authenticity:",
+          "  [yellow]python rsa_system.py[/] [green]verify document.txt document.sig[/][span_22](start_span)[span_22](end_span)"
+        ]
+      }]
+    },
+    {
+      "component": "Panel",
+      "title": "[red]Common Errors & Troubleshooting[/]",
+      "style": "red",
+      "content": [{
+        "component": "Markup",
+        "text": [
+          "  • [bold]\"KeyNotFoundError\":[/] Key files missing in vault. Run 'genkeys' or verify the --vault path[span_23](start_span)[span_23](end_span).",
+          "  • [bold]\"Payload exceeds RSA-OAEP limit\":[/] Payload is too large for pure RSA. Use 'encrypt-file' for hybrid encryption[span_24](start_span)[span_24](end_span).",
+          "  • [bold]\"DecryptionError\":[/] Invalid key passphrase, corrupted ciphertext, or tampered AES-GCM bundle[span_25](start_span)[span_25](end_span)."
+        ]
+      }]
+    }
+  ]
+}
